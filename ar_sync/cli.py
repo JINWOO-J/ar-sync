@@ -843,6 +843,22 @@ def sync(
             else:
                 typer.echo("✓ No local changes to push")
 
+        # 5. Sync metadata with actual store contents
+        store_manager = StoreManager(store_path)
+        try:
+            metadata = store_manager.load()
+            synced_projects = []
+            for project_name in metadata.projects.keys():
+                if store_manager.sync_metadata_with_store(project_name):
+                    synced_projects.append(project_name)
+                    project = metadata.projects[project_name]
+                    typer.echo(f"  Updated targets for '{project_name}': {', '.join(project.targets)}")
+
+            if synced_projects:
+                typer.echo(f"\n✓ Synced metadata for {len(synced_projects)} project(s)")
+        except FileNotFoundError:
+            pass  # Metadata file doesn't exist yet
+
         typer.echo("\n✓ Store synchronization complete!")
 
     except ARSyncError as e:
@@ -939,8 +955,12 @@ def pull(
             else:
                 typer.echo("[1/2] Store is already up to date with remote")
 
-        # 5. Get project info from store
+        # 5. Get project info from store and sync metadata
         store_manager = StoreManager(store_path)
+
+        # Sync metadata with actual store contents
+        if store_manager.sync_metadata_with_store(project_name):
+            typer.echo(f"  Synced metadata for '{project_name}'")
 
         try:
             project_info = store_manager.get_project(project_name)
@@ -1074,8 +1094,24 @@ def push(
                 ]
             )
 
-        # 5. Copy files from project directory to store
+        # 5. Scan for targets in current directory and update if needed
         project_dir = Path.cwd()
+        found_targets = ProjectManager.scan_targets(project_dir, config.default_targets)
+
+        # Check if there are new targets
+        current_targets = set(project_info.targets)
+        new_targets = set(found_targets) - current_targets
+
+        if new_targets:
+            typer.echo(f"Found new targets: {', '.join(sorted(new_targets))}")
+            # Update metadata with new targets
+            all_targets = sorted(current_targets | set(found_targets))
+            hostname = ProjectManager.get_hostname()
+            store_manager.add_project(project_name, all_targets, hostname)
+            project_info.targets = all_targets
+            typer.echo(f"✓ Updated targets: {', '.join(all_targets)}")
+
+        # 6. Copy files from project directory to store
         backup_dir = Path(config.backup_dir)
         project_manager = ProjectManager(store_path, backup_dir)
 
@@ -1086,7 +1122,7 @@ def push(
 
         typer.echo(f"✓ Files copied to {store_path / project_name}")
 
-        # 6. For git backend, commit and push to remote
+        # 7. For git backend, commit and push to remote
         if config.backend == 'git':
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
