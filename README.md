@@ -46,7 +46,7 @@ gh repo create ar-sync-store --private
 ars setup \
   --backend git \
   --path ~/ar-sync-store \
-  --repo-url git@github.com:JINWOO-J/ar-sync-store.git
+  --repo-url git@github.com:username/ar-sync-store.git
 ```
 
 ### 2. Initialize Project
