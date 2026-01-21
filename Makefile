@@ -42,9 +42,6 @@ install-dev:
 run:
 	@python -m ar_sync.cli $(ARGS)
 
-# 예시: make run ARGS="--help"
-# 예시: make run ARGS="status"
-
 # 테스트
 test:
 	pytest
@@ -132,21 +129,16 @@ publish: verify
 	@echo "Publishing to PyPI..."
 	@current=$$(grep '__version__' ar_sync/__version__.py | cut -d'"' -f2); \
 	echo "Version: $$current"; \
-	read -p "Are you sure you want to publish version $$current to PyPI? (yes/no): " confirm; \
-	if [ "$$confirm" = "yes" ]; then \
-		python -m build; \
-		python -m twine upload dist/*; \
-		echo ""; \
-		echo "✓ Published version $$current to PyPI"; \
-		echo ""; \
-		echo "Don't forget to:"; \
-		echo "  1. git add ar_sync/__version__.py"; \
-		echo "  2. git commit -m 'Bump version to $$current'"; \
-		echo "  3. git tag v$$current"; \
-		echo "  4. git push && git push --tags"; \
-	else \
-		echo "Publish cancelled"; \
-	fi
+	python -m build; \
+	python -m twine upload dist/*; \
+	echo ""; \
+	echo "✓ Published version $$current to PyPI"; \
+	echo ""; \
+	echo "Don't forget to:"; \
+	echo "  1. git add ar_sync/__version__.py"; \
+	echo "  2. git commit -m 'Bump version to $$current'"; \
+	echo "  3. git tag v$$current"; \
+	echo "  4. git push && git push --tags"
 
 # 전체 검증 (CI/CD용)
 verify: install-dev lint type-check test-cov

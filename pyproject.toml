@@ -23,16 +23,16 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[project.urls]
-Homepage = "https://github.com/JINWOO-J/ar-sync"
-Repository = "https://github.com/JINWOO-J/ar-sync"
-Issues = "https://github.com/JINWOO-J/ar-sync/issues"
-
 dependencies = [
     "typer>=0.9.0",
     "gitpython>=3.1.40",
     "pyyaml>=6.0.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/JINWOO-J/ar-sync"
+Repository = "https://github.com/JINWOO-J/ar-sync"
+Issues = "https://github.com/JINWOO-J/ar-sync/issues"
 
 [project.optional-dependencies]
 dev = [

@@ -71,9 +71,27 @@ app = typer.Typer(
 )
 
 
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        from ar_sync.__version__ import __version__
+        typer.echo(f"ar-sync version {__version__}")
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
-def callback(ctx: typer.Context) -> None:
-    """Callback to prevent double execution logging."""
+def callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-v",
+        help="Show version and exit",
+        callback=version_callback,
+        is_eager=True
+    )
+) -> None:
+    """Callback to handle global options."""
     pass
 
 
