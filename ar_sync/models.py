@@ -8,15 +8,14 @@ This module defines the core data structures used throughout ar-sync:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict
 
 
 @dataclass
 class LocalConfig:
     """Local configuration for ar-sync CLI.
-    
+
     Stored at ~/.config/ar-sync/config.yaml
-    
+
     Attributes:
         version: Configuration file format version (currently 1)
         backend: Storage backend type ("git" or "local")
@@ -31,7 +30,7 @@ class LocalConfig:
     backend: str
     store_path: str
     repo_url: str
-    default_targets: List[str]
+    default_targets: list[str]
     auto_sync: bool
     backup_originals: bool
     backup_dir: str
@@ -40,7 +39,7 @@ class LocalConfig:
 @dataclass
 class MachineInfo:
     """Information about a machine that has linked to a project.
-    
+
     Attributes:
         hostname: Machine hostname identifier
         linked_at: ISO 8601 timestamp when machine linked to project
@@ -52,23 +51,23 @@ class MachineInfo:
 @dataclass
 class ProjectInfo:
     """Information about a project in the store.
-    
+
     Attributes:
         added_at: ISO 8601 timestamp when project was added
         targets: List of target directories synced for this project
         machines: List of machines that have linked to this project
     """
     added_at: str
-    targets: List[str]
-    machines: List[MachineInfo] = field(default_factory=list)
+    targets: list[str]
+    machines: list[MachineInfo] = field(default_factory=list)
 
 
 @dataclass
 class StoreMetadata:
     """Store metadata for ar-sync.
-    
+
     Stored at {store_path}/.ar-sync.yaml
-    
+
     Attributes:
         version: Metadata file format version (currently 1)
         created_at: ISO 8601 timestamp when store was created
@@ -76,4 +75,4 @@ class StoreMetadata:
     """
     version: int
     created_at: str
-    projects: Dict[str, ProjectInfo] = field(default_factory=dict)
+    projects: dict[str, ProjectInfo] = field(default_factory=dict)
