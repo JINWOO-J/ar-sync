@@ -180,7 +180,24 @@ def setup(
             backend=backend,
             store_path=str(store_path),
             repo_url=repo_url,
-            default_targets=[".cursor", ".kiro", ".gemini", ".qwen", "AGENTS.md"],
+            default_targets=[
+                ".claude",
+                ".clauderules",
+                ".cursor",
+                ".cursorrules",
+                ".windsurf",
+                ".windsurfrules",
+                ".clinerules",
+                ".kiro",
+                ".gemini",
+                ".qwen",
+                ".zed",
+                ".vscode",
+                ".github/copilot-instructions.md",
+                ".aider",
+                ".aiderignore",
+                "AGENTS.md"
+            ],
             auto_sync=False,
             backup_originals=True,
             backup_dir=str(Path.home() / ".config" / "ar-sync" / "backups")
@@ -798,50 +815,50 @@ def sync(
                 ]
             )
 
-        # 2. Check backend type
-        if config.backend != 'git':
-            raise ARSyncError(
-                f"Sync command is only available for 'git' backend (current: {config.backend})",
-                ErrorCategory.USER_INPUT,
-                recovery_steps=[
-                    "For 'local' backend, files are automatically synced via cloud storage (Dropbox, iCloud, etc.)",
-                    "Or switch to 'git' backend: ars config --backend git --repo-url git@github.com:user/repo.git"
-                ]
-            )
-
-        # 3. Initialize Git backend
+        # 2. Get store path
         store_path = Path(config.store_path)
-        git_backend = GitBackend(store_path, config.repo_url)
-        git_backend.initialize()
 
-        # 4. Perform sync
-        if pull_only and push_only:
-            raise ARSyncError(
-                "Cannot use --pull and --push together",
-                ErrorCategory.USER_INPUT,
-                recovery_steps=[
-                    "Use --pull for pull only",
-                    "Use --push for push only",
-                    "Or use neither for full sync"
-                ]
-            )
+        # 3. Perform sync based on backend type
+        if config.backend == 'git':
+            # Git backend: sync with remote repository
+            git_backend = GitBackend(store_path, config.repo_url)
+            git_backend.initialize()
 
-        if not push_only:
-            typer.echo("[1/2] Pulling changes from remote repository...")
-            pull_result = git_backend.pull()
-            if pull_result['files_changed'] > 0:
-                typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote")
-            else:
-                typer.echo("✓ No changes from remote (already up to date)")
+            # 4. Perform sync
+            if pull_only and push_only:
+                raise ARSyncError(
+                    "Cannot use --pull and --push together",
+                    ErrorCategory.USER_INPUT,
+                    recovery_steps=[
+                        "Use --pull for pull only",
+                        "Use --push for push only",
+                        "Or use neither for full sync"
+                    ]
+                )
 
-        if not pull_only:
-            typer.echo("[2/2] Committing and pushing local changes...")
-            push_result = git_backend.commit_and_push(message)
-            if push_result['committed']:
-                typer.echo(f"✓ Committed {push_result['files_changed']} file(s)")
-                typer.echo("✓ Pushed to remote")
-            else:
-                typer.echo("✓ No local changes to push")
+            if not push_only:
+                typer.echo("[1/2] Pulling changes from remote repository...")
+                pull_result = git_backend.pull()
+                if pull_result['files_changed'] > 0:
+                    typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote")
+                else:
+                    typer.echo("✓ No changes from remote (already up to date)")
+
+            if not pull_only:
+                typer.echo("[2/2] Committing and pushing local changes...")
+                push_result = git_backend.commit_and_push(message)
+                if push_result['committed']:
+                    typer.echo(f"✓ Committed {push_result['files_changed']} file(s)")
+                    typer.echo("✓ Pushed to remote")
+                else:
+                    typer.echo("✓ No local changes to push")
+        else:
+            # Local backend: just sync metadata and pull missing targets
+            if pull_only or push_only or message:
+                typer.echo("⚠️  --pull, --push, -m options are only available for 'git' backend")
+                typer.echo("For 'local' backend, sync only updates metadata and pulls missing targets\n")
+
+            typer.echo("Syncing metadata with store contents...")
 
         # 5. Sync metadata with actual store contents
         store_manager = StoreManager(store_path)
@@ -858,6 +875,44 @@ def sync(
                 typer.echo(f"\n✓ Synced metadata for {len(synced_projects)} project(s)")
         except FileNotFoundError:
             pass  # Metadata file doesn't exist yet
+
+        # 6. Check if current directory is a registered project and pull missing targets
+        current_project = ProjectManager.get_current_project_name()
+        current_dir = Path.cwd()
+
+        try:
+            project_info = store_manager.get_project(current_project)
+            if project_info is not None:
+                # Check which targets exist in store but not in current directory
+                missing_targets = []
+                for target in project_info.targets:
+                    target_path = current_dir / target
+                    store_target_path = store_path / current_project / target
+
+                    # Target exists in store but not in project directory
+                    if store_target_path.exists() and not target_path.exists():
+                        missing_targets.append(target)
+
+                if missing_targets:
+                    typer.echo(f"\n프로젝트 '{current_project}'에서 누락된 타겟 발견: {', '.join(missing_targets)}")
+                    typer.echo("Store에서 누락된 타겟을 가져옵니다...")
+
+                    # Pull only missing targets
+                    for target in missing_targets:
+                        source = store_path / current_project / target
+                        dest = current_dir / target
+
+                        if source.is_dir():
+                            shutil.copytree(source, dest)
+                        else:
+                            dest.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(source, dest)
+
+                        typer.echo(f"  ✓ {target} 복사 완료")
+
+                    typer.echo(f"✓ {len(missing_targets)}개 타겟을 Store에서 가져왔습니다")
+        except FileNotFoundError:
+            pass  # Project not found or metadata doesn't exist
 
         typer.echo("\n✓ Store synchronization complete!")
 

@@ -1,6 +1,23 @@
 # ar-sync
 
-A Python CLI tool for synchronizing AI IDE configuration files across multiple machines. Uses Git as a storage backend to version control and synchronize configuration files like `.cursor`, `.kiro`, `.gemini`, `.qwen`, and `AGENTS.md`.
+A Python CLI tool for synchronizing AI IDE configuration files across multiple machines. Uses Git as a storage backend to version control and synchronize configuration files.
+
+## Supported AI IDEs
+
+ar-sync supports configuration synchronization for the following AI-powered development tools:
+
+- **Claude** (`.claude/`, `.clauderules`)
+- **Cursor** (`.cursor/`, `.cursorrules`)
+- **Windsurf** (`.windsurf/`, `.windsurfrules`)
+- **Cline** (`.clinerules/`)
+- **Kiro** (`.kiro/`)
+- **Gemini** (`.gemini/`)
+- **Qwen** (`.qwen/`)
+- **Zed** (`.zed/`)
+- **GitHub Copilot** (`.github/copilot-instructions.md`)
+- **VSCode** (`.vscode/`)
+- **Aider** (`.aider`, `.aiderignore`)
+- **Custom Rules** (`AGENTS.md`)
 
 ## Key Features
 
@@ -58,7 +75,19 @@ cd ~/my-project
 ars init
 ```
 
-By default, `.cursor`, `.kiro`, `.gemini`, `.qwen`, and `AGENTS.md` files/directories are synchronized.
+By default, the following files/directories are synchronized:
+- `.claude/`, `.clauderules` (Claude AI)
+- `.cursor/`, `.cursorrules` (Cursor IDE)
+- `.windsurf/`, `.windsurfrules` (Windsurf IDE)
+- `.clinerules/` (Cline extension)
+- `.kiro/` (Kiro IDE)
+- `.gemini/` (Gemini AI)
+- `.qwen/` (Qwen AI)
+- `.zed/` (Zed editor)
+- `.vscode/` (VSCode settings)
+- `.github/copilot-instructions.md` (GitHub Copilot)
+- `.aider`, `.aiderignore` (Aider AI)
+- `AGENTS.md` (Custom AI rules)
 
 Alternatively, to explicitly add only:
 
@@ -372,11 +401,22 @@ backend: git  # 'git' or 'local'
 store_path: /Users/username/ar-sync-store
 repo_url: git@github.com:username/ar-sync-store.git  # git backend only
 default_targets:
-  - .cursor
-  - .kiro
-  - .gemini
-  - .qwen
-  - AGENTS.md
+- .claude
+- .clauderules
+- .cursor
+- .cursorrules
+- .windsurf
+- .windsurfrules
+- .clinerules
+- .kiro
+- .gemini
+- .qwen
+- .zed
+- .vscode
+- .github/copilot-instructions.md
+- .aider
+- .aiderignore
+- AGENTS.md
 auto_sync: false
 backup_originals: true
 backup_dir: /Users/username/.config/ar-sync/backups
