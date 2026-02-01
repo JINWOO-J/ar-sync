@@ -11,7 +11,7 @@ from pathlib import Path
 import typer
 
 from ar_sync.config_manager import ConfigManager
-from ar_sync.constants import DEFAULT_TARGETS
+from ar_sync.constants import DEFAULT_TARGETS, SYNC_MODE_LINK
 from ar_sync.errors import ARSyncError, ErrorCategory
 from ar_sync.git_backend import GitBackend
 from ar_sync.models import LocalConfig
@@ -62,6 +62,31 @@ def debug_log(message: str) -> None:
         message: Log message
     """
     logger.debug(message)
+
+
+def perform_auto_sync(config: LocalConfig) -> None:
+    """Perform automatic git sync if auto_sync is enabled.
+
+    Args:
+        config: Local configuration with auto_sync setting
+    """
+    if not config.auto_sync:
+        return
+
+    if config.backend != 'git':
+        return
+
+    typer.echo("\nAuto-syncing with remote...")
+
+    try:
+        store_path = Path(config.store_path)
+        git_backend = GitBackend(store_path, config.repo_url)
+        git_backend.initialize()
+        git_backend.sync()
+        typer.echo("✓ Auto-sync complete")
+    except Exception as e:
+        typer.echo(f"⚠️  Auto-sync failed: {e}", err=True)
+        typer.echo("You can manually sync later with 'ars sync'", err=True)
 
 
 app = typer.Typer(
@@ -194,6 +219,22 @@ def setup(
 
         # 5. Initialize Git repository (only for git backend)
         if backend == 'git':
+            # Verify remote access before initializing
+            typer.echo("Verifying remote repository access...")
+            if not GitBackend.verify_remote_access(repo_url):
+                raise ARSyncError(
+                    f"Cannot access remote repository: {repo_url}",
+                    ErrorCategory.GIT,
+                    recovery_steps=[
+                        "SSH key may not be configured. Run: ssh-keygen -t ed25519",
+                        "Add your SSH key to the Git hosting service (GitHub, GitLab, etc.)",
+                        "Check repository URL is correct and accessible",
+                        "Test SSH connection: ssh -T git@github.com (or your Git host)",
+                        "Ensure the repository exists and you have access permissions"
+                    ]
+                )
+            typer.echo("✓ Remote repository is accessible")
+
             git_backend = GitBackend(store_path, repo_url)
             git_backend.initialize()
             typer.echo(f"✓ Git repository initialized at {store_path}")
@@ -330,6 +371,9 @@ def add(
         typer.echo(f"\n✓ Project '{project_name}' added successfully!")
         typer.echo("\nNext steps:")
         typer.echo(f"  - On another machine, run 'ars link --project {project_name}' to link these settings")
+
+        # Perform auto-sync if enabled
+        perform_auto_sync(config)
 
     except ARSyncError as e:
         typer.echo(e.format_error(), err=True)
@@ -474,6 +518,9 @@ def init(
         else:
             typer.echo(f"\nYour project is now synced via {store_path}")
 
+        # Perform auto-sync if enabled
+        perform_auto_sync(config)
+
     except ARSyncError as e:
         typer.echo(e.format_error(), err=True)
         if DEBUG_MODE:
@@ -611,11 +658,11 @@ def link(
 
         typer.echo("✓ Symlinks created")
 
-        # 7. Update store metadata with current machine
+        # 7. Update store metadata with current machine and set sync_mode to "link"
         hostname = ProjectManager.get_hostname()
-        store_manager.add_project(project_name, project_info.targets, hostname)
+        store_manager.add_project(project_name, project_info.targets, hostname, sync_mode=SYNC_MODE_LINK)
 
-        typer.echo("✓ Store metadata updated")
+        typer.echo("✓ Store metadata updated (sync_mode: link)")
 
         typer.echo(f"\n✓ Project '{project_name}' linked successfully!")
         typer.echo(f"Machine: {hostname}")
@@ -925,6 +972,7 @@ def sync(
 @app.command()
 def pull(
     project: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force pull even if project uses symlinks"),
     debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
 ) -> None:
     """Pull changes from store to current project directory.
@@ -943,6 +991,7 @@ def pull(
     Examples:
         ars pull                    # Pull to current directory
         ars pull --project my-proj  # Pull specific project
+        ars pull --force            # Force pull even if using symlinks
         ars pull --debug            # Show detailed logs
     """
     setup_logging(debug)
@@ -1023,6 +1072,15 @@ def pull(
                 ]
             )
 
+        # 5.5. Check sync_mode and warn if using symlinks
+        if project_info.sync_mode == SYNC_MODE_LINK and not force:
+            typer.echo(
+                "Warning: This project uses symlinks. "
+                "Use 'ars link' instead, or use --force to override.",
+                err=True
+            )
+            raise typer.Exit(code=1)
+
         # 6. Copy files from store to project directory
         project_dir = Path.cwd()
         backup_dir = Path(config.backup_dir)
@@ -1063,6 +1121,7 @@ def pull(
 def push(
     project: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
     message: str | None = typer.Option(None, "-m", help="Commit message (git backend only)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force push even if project uses symlinks"),
     debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
 ) -> None:
     """Push changes from current project directory to store.
@@ -1074,6 +1133,7 @@ def push(
         ars push
         ars push --project my-project
         ars push -m "Update settings"
+        ars push --force              # Force push even if using symlinks
         ars push --debug
     """
     setup_logging(debug)
@@ -1133,6 +1193,15 @@ def push(
                 ]
             )
 
+        # 4.5. Check sync_mode and warn if using symlinks
+        if project_info.sync_mode == SYNC_MODE_LINK and not force:
+            typer.echo(
+                "Warning: This project uses symlinks. "
+                "Use 'ars link' instead, or use --force to override.",
+                err=True
+            )
+            raise typer.Exit(code=1)
+
         # 5. Scan for targets in current directory and update if needed
         project_dir = Path.cwd()
         found_targets = ProjectManager.scan_targets(project_dir, config.default_targets)
@@ -1179,6 +1248,9 @@ def push(
 
         typer.echo("\n✓ Push complete!")
 
+        # Perform auto-sync if enabled
+        perform_auto_sync(config)
+
     except ARSyncError as e:
         typer.echo(e.format_error(), err=True)
         if DEBUG_MODE:
@@ -1207,6 +1279,7 @@ def config(
     path: str | None = typer.Option(None, "--path", help="Set store path"),
     repo_url: str | None = typer.Option(None, "--repo-url", help="Set repository URL"),
     targets: str | None = typer.Option(None, "--targets", help="Set default targets (comma-separated)"),
+    auto_sync: str | None = typer.Option(None, "--auto-sync", help="Enable/disable auto sync (true/false)"),
     debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
 ) -> None:
     """View or modify configuration settings.
@@ -1219,6 +1292,7 @@ def config(
         ars config --path ~/new-store-path
         ars config --repo-url git@github.com:user/new-repo.git
         ars config --targets .cursor,.kiro,.vscode
+        ars config --auto-sync true
         ars config --debug
     """
     setup_logging(debug)
@@ -1239,7 +1313,7 @@ def config(
             )
 
         # If show flag is set or no options provided, display current config
-        if show or (backend is None and path is None and repo_url is None and targets is None):
+        if show or (backend is None and path is None and repo_url is None and targets is None and auto_sync is None):
             typer.echo("Current configuration:\n")
             typer.echo(f"Backend:         {current_config.backend}")
             typer.echo(f"Store path:      {current_config.store_path}")
@@ -1283,6 +1357,20 @@ def config(
             current_config.default_targets = target_list
             updated = True
             typer.echo(f"✓ Default targets set to: {', '.join(target_list)}")
+
+        if auto_sync is not None:
+            auto_sync_lower = auto_sync.lower()
+            if auto_sync_lower not in ['true', 'false']:
+                raise ARSyncError(
+                    f"Invalid auto-sync value: {auto_sync}",
+                    ErrorCategory.USER_INPUT,
+                    recovery_steps=[
+                        "Use 'true' or 'false' for --auto-sync option"
+                    ]
+                )
+            current_config.auto_sync = auto_sync_lower == 'true'
+            updated = True
+            typer.echo(f"✓ Auto sync set to: {current_config.auto_sync}")
 
         if updated:
             config_manager.save(current_config)

@@ -1,10 +1,56 @@
 """Unit tests for GitBackend."""
 
+from unittest.mock import patch
 
 import pytest
 from git import Repo
 
 from ar_sync.git_backend import GitBackend
+
+
+class TestGitBackendVerifyRemoteAccess:
+    """Tests for GitBackend.verify_remote_access()."""
+
+    def test_verify_remote_access_success(self):
+        """Test that verify_remote_access returns True when remote is accessible."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
+            assert result is True
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["git", "ls-remote", "--exit-code", "git@github.com:user/repo.git"]
+            assert call_args[1]["timeout"] == 10
+
+    def test_verify_remote_access_failure(self):
+        """Test that verify_remote_access returns False when remote is not accessible."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 128
+            result = GitBackend.verify_remote_access("git@github.com:user/nonexistent.git")
+            assert result is False
+
+    def test_verify_remote_access_timeout(self):
+        """Test that verify_remote_access returns False on timeout."""
+        import subprocess
+        with patch('subprocess.run') as mock_run:
+            mock_run.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=10)
+            result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
+            assert result is False
+
+    def test_verify_remote_access_subprocess_error(self):
+        """Test that verify_remote_access returns False on subprocess error."""
+        import subprocess
+        with patch('subprocess.run') as mock_run:
+            mock_run.side_effect = subprocess.SubprocessError("Command failed")
+            result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
+            assert result is False
+
+    def test_verify_remote_access_os_error(self):
+        """Test that verify_remote_access returns False when git is not found."""
+        with patch('subprocess.run') as mock_run:
+            mock_run.side_effect = OSError("git not found")
+            result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
+            assert result is False
 
 
 class TestGitBackendInitialize:

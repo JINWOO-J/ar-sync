@@ -56,10 +56,12 @@ class ProjectInfo:
         added_at: ISO 8601 timestamp when project was added
         targets: List of target directories synced for this project
         machines: List of machines that have linked to this project
+        sync_mode: Synchronization mode ("copy" or "link")
     """
     added_at: str
     targets: list[str]
     machines: list[MachineInfo] = field(default_factory=list)
+    sync_mode: str = field(default="copy")
 
 
 @dataclass

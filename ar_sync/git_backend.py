@@ -1,6 +1,7 @@
 """Git backend implementation for ar-sync."""
 
 import socket
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,6 +28,34 @@ class GitBackend:
         self.store_path = Path(store_path)
         self.repo_url = repo_url
         self.repo: Repo | None = None
+
+    @staticmethod
+    def verify_remote_access(repo_url: str) -> bool:
+        """
+        Verify that the remote repository is accessible.
+
+        Uses 'git ls-remote' to check if the repository URL is reachable.
+        This is useful for validating SSH keys and repository URLs before
+        attempting to clone or push.
+
+        Args:
+            repo_url: URL of the remote Git repository
+
+        Returns:
+            True if the remote is accessible, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["git", "ls-remote", "--exit-code", repo_url],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            return False
+        except (subprocess.SubprocessError, OSError):
+            return False
 
     def initialize(self) -> None:
         """

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from ar_sync.constants import SYNC_MODE_COPY
 from ar_sync.models import MachineInfo, ProjectInfo, StoreMetadata
 
 
@@ -69,10 +70,13 @@ class StoreManager:
             machines = [
                 MachineInfo(**m) for m in proj_data.get('machines', [])
             ]
+            # Backward compatibility: default to "copy" if sync_mode not present
+            sync_mode = proj_data.get('sync_mode', SYNC_MODE_COPY)
             projects[name] = ProjectInfo(
                 added_at=proj_data['added_at'],
                 targets=proj_data['targets'],
-                machines=machines
+                machines=machines,
+                sync_mode=sync_mode
             )
 
         self.metadata = StoreMetadata(
@@ -110,7 +114,8 @@ class StoreManager:
                 'machines': [
                     {'hostname': m.hostname, 'linked_at': m.linked_at}
                     for m in proj.machines
-                ]
+                ],
+                'sync_mode': proj.sync_mode
             }
 
         # Atomic write: write to temp file then rename
@@ -141,7 +146,7 @@ class StoreManager:
         self.save(metadata)
         return metadata
 
-    def add_project(self, name: str, targets: list[str], hostname: str) -> None:
+    def add_project(self, name: str, targets: list[str], hostname: str, sync_mode: str | None = None) -> None:
         """Add or update project in metadata.
 
         If the project already exists, updates its targets and adds the machine
@@ -151,6 +156,7 @@ class StoreManager:
             name: Project name (identifier)
             targets: List of target directories for this project
             hostname: Current machine hostname
+            sync_mode: Sync mode ("copy" or "link"). If None, preserves existing or defaults to "copy"
 
         Raises:
             FileNotFoundError: If metadata not loaded and file doesn't exist
@@ -167,6 +173,9 @@ class StoreManager:
             # Update existing project
             project = self.metadata.projects[name]
             project.targets = targets
+            # Update sync_mode only if explicitly provided
+            if sync_mode is not None:
+                project.sync_mode = sync_mode
             # Add machine if not already present
             if not any(m.hostname == hostname for m in project.machines):
                 project.machines.append(MachineInfo(hostname=hostname, linked_at=now))
@@ -175,7 +184,8 @@ class StoreManager:
             self.metadata.projects[name] = ProjectInfo(
                 added_at=now,
                 targets=targets,
-                machines=[MachineInfo(hostname=hostname, linked_at=now)]
+                machines=[MachineInfo(hostname=hostname, linked_at=now)],
+                sync_mode=sync_mode if sync_mode is not None else SYNC_MODE_COPY
             )
 
         self.save(self.metadata)
@@ -199,6 +209,31 @@ class StoreManager:
         assert self.metadata is not None
 
         return self.metadata.projects.get(name)
+
+    def update_sync_mode(self, name: str, sync_mode: str) -> bool:
+        """Update sync mode for a project.
+
+        Args:
+            name: Project name to update
+            sync_mode: New sync mode ("copy" or "link")
+
+        Returns:
+            True if project was updated, False if project not found
+
+        Raises:
+            FileNotFoundError: If metadata not loaded and file doesn't exist
+        """
+        if self.metadata is None:
+            self.load()
+
+        assert self.metadata is not None
+
+        if name not in self.metadata.projects:
+            return False
+
+        self.metadata.projects[name].sync_mode = sync_mode
+        self.save(self.metadata)
+        return True
 
     def scan_store_targets(self, project_name: str) -> list[str]:
         """Scan store directory to find actual target files/directories.
