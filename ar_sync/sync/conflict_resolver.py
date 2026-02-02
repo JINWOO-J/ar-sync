@@ -202,8 +202,8 @@ class ConflictResolver:
         """Prompt the user to choose a resolution method.
 
         Displays options and waits for user input:
-        - [l]ocal: Use Project_Directory version
-        - [r]emote: Use Store version
+        - [l]ocal: Use Project_Directory version (deletes if not in local)
+        - [r]emote: Use Store version (copies to local if not in local)
         - [m]erge: Perform 3-way merge (disabled for binary files)
         - [s]kip: Leave both versions unchanged
 
@@ -217,12 +217,28 @@ class ConflictResolver:
         - Requirement 5.1: Prompt with [l]ocal / [r]emote / [m]erge / [s]kip options
         - Requirement 5.7: Disable merge option for binary files
         """
-        # Build options text (Requirement 5.1)
+        # Build options text with context-aware descriptions
         options = Text()
-        options.append("[l]", style="bold cyan")
-        options.append("ocal / ", style="dim")
-        options.append("[r]", style="bold cyan")
-        options.append("emote / ", style="dim")
+
+        # Determine what each option means based on change type
+        if "only in store" in str(change.change_type).lower() or "added_remote" in str(change.change_type).lower():
+            # File exists only in store
+            options.append("[l]", style="bold cyan")
+            options.append("ocal (delete from store) / ", style="dim")
+            options.append("[r]", style="bold cyan")
+            options.append("emote (copy to local) / ", style="dim")
+        elif "only in local" in str(change.change_type).lower() or "added_local" in str(change.change_type).lower():
+            # File exists only in local
+            options.append("[l]", style="bold cyan")
+            options.append("ocal (copy to store) / ", style="dim")
+            options.append("[r]", style="bold cyan")
+            options.append("emote (delete from local) / ", style="dim")
+        else:
+            # File exists in both (modified)
+            options.append("[l]", style="bold cyan")
+            options.append("ocal / ", style="dim")
+            options.append("[r]", style="bold cyan")
+            options.append("emote / ", style="dim")
 
         # Disable merge for binary files (Requirement 5.7)
         if change.is_binary:

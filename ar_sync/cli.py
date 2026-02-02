@@ -84,7 +84,7 @@ def perform_auto_sync(config: LocalConfig) -> None:
 
     if config.backend != 'git':
         return
-    
+
     if not config.repo_url:
         return  # Skip auto-sync if no remote URL configured
 

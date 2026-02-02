@@ -8,7 +8,6 @@ This module defines the core data structures used throughout ar-sync:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -30,7 +29,7 @@ class LocalConfig:
     version: int
     backend: str
     store_path: str
-    repo_url: Optional[str] = None
+    repo_url: str | None = None
     default_targets: list[str] = field(default_factory=list)
     auto_sync: bool = False
     backup_originals: bool = True

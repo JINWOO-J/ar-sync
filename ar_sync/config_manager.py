@@ -106,7 +106,7 @@ class ConfigManager:
             'backup_originals': config.backup_originals,
             'backup_dir': config.backup_dir
         }
-        
+
         # Add repo_url only if it's set
         if config.repo_url:
             data['repo_url'] = config.repo_url
