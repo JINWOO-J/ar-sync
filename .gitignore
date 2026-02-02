@@ -149,4 +149,5 @@ cython_debug/
 .ar-sync-test/
 test-store/
 .kiro
+!.kiro/specs/
 AGENTS.md
