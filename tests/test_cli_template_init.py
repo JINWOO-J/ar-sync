@@ -6,11 +6,26 @@ Tests the init command with template-related options:
 Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.2
 """
 
+
+import pytest
 from typer.testing import CliRunner
 
 from ar_sync.cli import app
+from ar_sync.config_manager import ConfigManager
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def clean_config():
+    """Clean up any existing config file before each test."""
+    config_path = ConfigManager.CONFIG_PATH
+    if config_path.exists():
+        config_path.unlink()
+    yield
+    # Cleanup after test
+    if config_path.exists():
+        config_path.unlink()
 
 
 class TestInitListOption:

@@ -183,7 +183,8 @@ class TestConfigManagerProperties:
         Property 27: 필수 필드 검증
 
         For any LocalConfig read operation, the system should verify that
-        backend, store_path, and repo_url fields exist.
+        backend and store_path fields exist.
+        Note: repo_url is optional to support local-only git backend.
 
         Validates: Requirements 6.3
         """
@@ -197,12 +198,11 @@ class TestConfigManagerProperties:
         # Assert - required fields are present and not empty
         assert loaded_config.backend, "backend field must be present and non-empty"
         assert loaded_config.store_path, "store_path field must be present and non-empty"
-        assert loaded_config.repo_url, "repo_url field must be present and non-empty"
 
         # Assert - fields match original values
         assert loaded_config.backend == config.backend
         assert loaded_config.store_path == config.store_path
-        assert loaded_config.repo_url == config.repo_url
+        assert loaded_config.repo_url == config.repo_url  # Can be None or empty
 
     # Feature: cli-core-mvp, Property 27: 필수 필드 검증 (invalid backend)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -244,7 +244,7 @@ class TestConfigManagerProperties:
     # Feature: cli-core-mvp, Property 27: 필수 필드 검증 (empty fields)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
-        field_to_empty=st.sampled_from(['backend', 'store_path', 'repo_url'])
+        field_to_empty=st.sampled_from(['backend', 'store_path'])  # repo_url is now optional
     )
     def test_property_27_empty_required_fields_rejected(
         self, temp_config_dir, field_to_empty
@@ -254,6 +254,7 @@ class TestConfigManagerProperties:
 
         For any required field that is empty, the system should reject
         the configuration with a validation error.
+        Note: repo_url is optional to support local-only git backend.
 
         Validates: Requirements 6.3
         """

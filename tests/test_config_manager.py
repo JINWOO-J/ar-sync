@@ -154,17 +154,16 @@ class TestConfigManager:
         assert "store_path" in str(exc_info.value).lower()
         assert "required" in str(exc_info.value).lower()
 
-    def test_validate_rejects_empty_repo_url(self, sample_config):
-        """Test that validate() rejects empty repo_url."""
+    def test_validate_accepts_empty_repo_url(self, sample_config):
+        """Test that validate() accepts empty repo_url (for local-only mode)."""
         manager = ConfigManager()
         sample_config.repo_url = ''
 
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            manager.validate(sample_config)
+        # Act - should not raise
+        manager.validate(sample_config)
 
-        assert "repo_url" in str(exc_info.value).lower()
-        assert "required" in str(exc_info.value).lower()
+        # Assert - validation passed
+        assert sample_config.repo_url == ''
 
     def test_validate_rejects_invalid_version(self, sample_config):
         """Test that validate() rejects unsupported version."""

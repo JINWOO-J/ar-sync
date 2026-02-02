@@ -21,7 +21,7 @@ def runner():
 
 
 @pytest.fixture
-def temp_env(tmp_path):
+def temp_env(tmp_path, monkeypatch):
     """Create temporary environment with config, store, and project."""
     # Setup directories
     config_dir = tmp_path / "config"
@@ -34,9 +34,9 @@ def temp_env(tmp_path):
     project_dir.mkdir()
     backup_dir.mkdir()
 
-    # Create config
+    # Create config using monkeypatch (auto-restores after test)
     config_path = config_dir / "config.yaml"
-    ConfigManager.CONFIG_PATH = config_path
+    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
 
     config = LocalConfig(
         version=1,
