@@ -361,6 +361,60 @@ class TestSyncCommand:
         output = result.stdout + result.stderr
         assert "Cannot use --pull and --push together" in output
 
+    def test_sync_with_local_and_remote_options(self, runner, temp_env):
+        """Test sync command with conflicting --local and --remote options (Requirement 6.3)."""
+        # Setup
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, [
+            "setup",
+            "--backend", "git",
+            "--path", str(store_dir),
+            "--repo-url", "git@github.com:test/repo.git"
+        ])
+        
+        result = runner.invoke(app, ["sync", "--local", "--remote"])
+        
+        assert result.exit_code == 1
+        output = result.stdout + result.stderr
+        assert "Cannot use --local and --remote together" in output
+
+    def test_sync_with_diff_option(self, runner, temp_env):
+        """Test sync command with --diff option (Requirement 3.3)."""
+        # Setup
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, [
+            "setup",
+            "--backend", "git",
+            "--path", str(store_dir),
+            "--repo-url", "git@github.com:test/repo.git"
+        ])
+        
+        result = runner.invoke(app, ["sync", "--diff"])
+        
+        assert result.exit_code == 0
+        assert "[DRY-RUN]" in result.stdout
+        assert "differences only" in result.stdout
+
+    def test_sync_with_dry_run_option(self, runner, temp_env):
+        """Test sync command with --dry-run option (Requirement 7.1).
+        
+        Note: Full dry-run functionality will be implemented in task 9.2.
+        This test verifies the option is recognized and displays the preview message.
+        """
+        # Setup with local backend to avoid git operations
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, [
+            "setup",
+            "--backend", "local",
+            "--path", str(store_dir)
+        ])
+        
+        result = runner.invoke(app, ["sync", "--dry-run"])
+        
+        # For local backend, new options show warning message
+        assert result.exit_code == 0
+        assert "only available for 'git' backend" in result.stdout
+
     def test_sync_with_local_backend_ignores_git_options(self, runner, temp_env):
         """Test that sync with local backend ignores git-specific options."""
         # Setup with local backend
@@ -372,6 +426,21 @@ class TestSyncCommand:
         ])
         
         result = runner.invoke(app, ["sync", "--pull", "-m", "test message"])
+        
+        assert result.exit_code == 0
+        assert "only available for 'git' backend" in result.stdout
+
+    def test_sync_with_local_backend_ignores_new_options(self, runner, temp_env):
+        """Test that sync with local backend ignores new bidirectional sync options."""
+        # Setup with local backend
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, [
+            "setup",
+            "--backend", "local",
+            "--path", str(store_dir)
+        ])
+        
+        result = runner.invoke(app, ["sync", "--local", "--dry-run", "--diff"])
         
         assert result.exit_code == 0
         assert "only available for 'git' backend" in result.stdout

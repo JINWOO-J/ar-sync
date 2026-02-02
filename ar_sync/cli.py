@@ -17,6 +17,8 @@ from ar_sync.git_backend import GitBackend
 from ar_sync.models import LocalConfig
 from ar_sync.project_manager import ProjectManager
 from ar_sync.store_manager import StoreManager
+from ar_sync.sync.bidirectional_sync import BidirectionalSync
+from ar_sync.sync.models import ResolutionStrategy, SyncOptions, SyncResult
 
 # Global debug flag
 DEBUG_MODE = False
@@ -396,24 +398,208 @@ def add(
         raise typer.Exit(code=1)
 
 
+def _handle_template_init(
+    from_template: bool,
+    list_templates: bool,
+    output_dir: str | None,
+    category: str | None,
+    search: str | None,
+) -> None:
+    """Handle template-related init operations.
+
+    Requirements:
+    - 4.1: --from-template 옵션으로 대화식 템플릿 선택 모드 시작
+    - 4.2: -t 별칭 동작
+    - 4.4: --output-dir 옵션으로 지정된 디렉토리에 템플릿 복사
+    - 4.5: --category 옵션으로 해당 카테고리의 템플릿만 표시
+    - 4.6: --list 옵션으로 대화식 모드 없이 템플릿 목록 표시
+    - 5.2: --search 옵션과 함께 --list 사용 시 검색 결과만 표시
+
+    Args:
+        from_template: Start interactive template selection
+        list_templates: List available templates
+        output_dir: Output directory for templates
+        category: Filter by category
+        search: Search query
+    """
+    from rich.console import Console
+    from rich.table import Table
+
+    from ar_sync.template_manager import TemplateManager
+    from ar_sync.template_selector import TemplateSelector
+    from ar_sync.template_copier import TemplateCopier
+
+    console = Console()
+
+    try:
+        template_manager = TemplateManager()
+    except ARSyncError as e:
+        typer.echo(e.format_error(), err=True)
+        raise typer.Exit(code=1)
+
+    # Handle --list option (Requirement 4.6)
+    if list_templates:
+        _list_templates(template_manager, console, category, search)
+        return
+
+    # Handle --from-template option (Requirement 4.1, 4.2)
+    if from_template:
+        selector = TemplateSelector(template_manager, console)
+
+        # Prepare category filter
+        categories = [category] if category else None
+
+        # Run interactive selection
+        selected = selector.run_interactive_selection(
+            categories=categories,
+            search_query=search,
+        )
+
+        if not selected:
+            return
+
+        # Copy selected templates
+        output_path = Path(output_dir) if output_dir else None
+        copier = TemplateCopier(output_dir=output_path, console=console)
+
+        result = copier.copy_templates(selected)
+
+        if result.success:
+            console.print("\n[green]✓ 템플릿 초기화 완료![/green]")
+            console.print("\n[dim]다음 단계:[/dim]")
+            console.print("  1. 복사된 템플릿을 프로젝트에 맞게 수정하세요")
+            console.print("  2. AI IDE에서 템플릿을 활용하세요")
+
+
+def _list_templates(
+    template_manager: "TemplateManager",
+    console: "Console",
+    category: str | None,
+    search: str | None,
+) -> None:
+    """List available templates.
+
+    Requirements:
+    - 4.6: --list 옵션으로 대화식 모드 없이 템플릿 목록 표시
+    - 5.2: --search 옵션과 함께 --list 사용 시 검색 결과만 표시
+
+    Args:
+        template_manager: Template manager instance
+        console: Rich console instance
+        category: Filter by category
+        search: Search query
+    """
+    from rich.table import Table
+    from ar_sync.template_manager import TemplateManager as TM
+
+    console.print("\n[bold cyan]📚 사용 가능한 템플릿[/bold cyan]")
+
+    if search:
+        console.print(f"[dim]검색어: '{search}'[/dim]")
+        templates = template_manager.search_templates(search, category)
+
+        if not templates:
+            console.print(f"\n[yellow]'{search}' 검색 결과가 없습니다.[/yellow]")
+            console.print("[dim]다른 검색어를 시도하거나 --list만 사용하여 전체 목록을 확인하세요.[/dim]")
+            return
+
+        # Group by category
+        by_category: dict[str, list] = {}
+        for t in templates:
+            if t.category not in by_category:
+                by_category[t.category] = []
+            by_category[t.category].append(t)
+
+        for cat in TM.CATEGORIES:
+            if cat in by_category:
+                _print_category_table(console, cat, by_category[cat])
+    else:
+        # Show all templates
+        all_templates = template_manager.scan_templates()
+
+        categories_to_show = [category] if category else TM.CATEGORIES
+
+        for cat in categories_to_show:
+            templates = all_templates.get(cat, [])
+            if templates:
+                _print_category_table(console, cat, templates)
+
+    console.print("\n[dim]대화식 선택: ars init -t[/dim]")
+    console.print("[dim]카테고리 필터: ars init --list --category agents[/dim]")
+
+
+def _print_category_table(console: "Console", category: str, templates: list) -> None:
+    """Print a table of templates for a category.
+
+    Args:
+        console: Rich console instance
+        category: Category name
+        templates: List of templates
+    """
+    from rich.table import Table
+
+    table = Table(
+        title=f"[bold]{category.upper()}[/bold] ({len(templates)}개)",
+        show_header=True,
+        header_style="bold",
+    )
+    table.add_column("이름", style="cyan")
+    table.add_column("설명", style="dim", max_width=60)
+
+    for template in templates:
+        table.add_row(
+            template.display_name,
+            template.short_description or "[dim]설명 없음[/dim]",
+        )
+
+    console.print(table)
+    console.print()
+
+
 @app.command()
 def init(
     name: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
     targets: str | None = typer.Option(None, help="Comma-separated targets (defaults to .cursor,.kiro,.gemini,.qwen,AGENTS.md)"),
+    from_template: bool = typer.Option(False, "--from-template", "-t", help="Start interactive template selection"),
+    output_dir: str | None = typer.Option(None, "--output-dir", "-o", help="Output directory for templates (default: .claude)"),
+    category: str | None = typer.Option(None, "--category", "-c", help="Filter by category (agents, rules, skills)"),
+    list_templates: bool = typer.Option(False, "--list", "-l", help="List available templates without interactive mode"),
+    search: str | None = typer.Option(None, "--search", "-s", help="Search templates by name or description"),
     debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
 ) -> None:
-    """Initialize current project and add to store.
+    """Initialize current project and optionally add templates.
 
     This command adds the current project to the store and, if using local backend,
     automatically creates symlinks. This is the recommended way to set up a new project.
+
+    With --from-template (-t), starts interactive template selection to copy
+    AI IDE configuration templates (agents, rules, skills) to your project.
 
     Examples:
         ars init
         ars init --name my-project
         ars init --targets .cursor,.kiro,.vscode,AGENTS.md
+        ars init -t                          # Interactive template selection
+        ars init --list                      # List available templates
+        ars init --list --search security    # Search templates
+        ars init -t --category agents        # Select from agents only
+        ars init -t -o .cursor               # Output to .cursor directory
         ars init --debug
     """
     setup_logging(debug)
+
+    # Handle template-related options first (independent of store configuration)
+    if list_templates or from_template:
+        _handle_template_init(
+            from_template=from_template,
+            list_templates=list_templates,
+            output_dir=output_dir,
+            category=category,
+            search=search,
+        )
+        # If only listing templates, exit here
+        if list_templates and not from_template:
+            return
 
     try:
         # 1. Load configuration
@@ -421,6 +607,9 @@ def init(
         try:
             config = config_manager.load()
         except FileNotFoundError:
+            # If only doing template operations, this is fine
+            if from_template or list_templates:
+                return
             raise ARSyncError(
                 "Global configuration not found",
                 ErrorCategory.USER_INPUT,
@@ -806,27 +995,121 @@ def status(
         raise typer.Exit(code=1)
 
 
+def _display_sync_result(result: SyncResult, dry_run: bool, diff_only: bool) -> None:
+    """Display sync result with Rich formatting.
+    
+    Args:
+        result: SyncResult from BidirectionalSync.sync()
+        dry_run: Whether this was a dry-run operation
+        diff_only: Whether this was a diff-only operation
+        
+    Validates:
+    - Requirement 1.2: Display the number of files changed from remote
+    - Requirement 1.3: Display "already up to date" message when no changes
+    - Requirement 8.1, 8.2, 8.3: Display push results
+    """
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    
+    console = Console()
+    
+    # For diff-only mode, result display is handled by BidirectionalSync
+    if diff_only:
+        return
+    
+    # Build summary
+    prefix = "[DRY-RUN] " if dry_run else ""
+    
+    # Create summary table
+    table = Table(show_header=False, box=None)
+    table.add_column("Metric", style="dim")
+    table.add_column("Value", style="bold")
+    
+    if result.pulled_files > 0:
+        table.add_row("Files pulled from remote:", f"{result.pulled_files}")
+    
+    if result.conflicts_resolved > 0:
+        table.add_row("Conflicts resolved:", f"{result.conflicts_resolved}")
+    
+    if result.pushed_files > 0:
+        table.add_row("Files pushed to remote:", f"{result.pushed_files}")
+    
+    if result.skipped_files:
+        table.add_row("Files skipped:", f"{len(result.skipped_files)}")
+    
+    if result.errors:
+        table.add_row("Errors:", f"[red]{len(result.errors)}[/red]")
+    
+    # Display summary if there's anything to show
+    if table.row_count > 0:
+        console.print(f"\n{prefix}[bold]Sync Summary:[/bold]")
+        console.print(table)
+    
+    # Display errors if any
+    if result.errors:
+        console.print(f"\n{prefix}[red bold]Errors:[/red bold]")
+        for error in result.errors:
+            console.print(f"  [red]• {error}[/red]")
+    
+    # Display skipped files if any
+    if result.skipped_files:
+        console.print(f"\n{prefix}[yellow]Skipped files:[/yellow]")
+        for skipped in result.skipped_files:
+            console.print(f"  [dim]• {skipped}[/dim]")
+    
+    # Final status message
+    if not result.errors:
+        if dry_run:
+            console.print(f"\n{prefix}[green]✓ Dry-run complete. No changes were made.[/green]")
+        else:
+            total_changes = result.pulled_files + result.conflicts_resolved + result.pushed_files
+            if total_changes > 0:
+                console.print(f"\n[green]✓ Sync complete![/green]")
+            else:
+                console.print(f"\n[green]✓ Already in sync. No changes needed.[/green]")
+    else:
+        console.print(f"\n{prefix}[yellow]⚠️  Sync completed with errors.[/yellow]")
+
+
 @app.command()
 def sync(
     message: str | None = typer.Option(None, "-m", help="Commit message"),
-    pull_only: bool = typer.Option(False, "--pull", help="Pull only, don't push"),
-    push_only: bool = typer.Option(False, "--push", help="Push only, don't pull"),
+    pull_only: bool = typer.Option(False, "--pull", help="Pull only (Remote → Store → Project)"),
+    push_only: bool = typer.Option(False, "--push", help="Push only (Project → Store → Remote)"),
+    local: bool = typer.Option(False, "--local", help="Automatically prefer local (project) files for all conflicts"),
+    remote: bool = typer.Option(False, "--remote", help="Automatically prefer remote (store) files for all conflicts"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying them"),
+    diff: bool = typer.Option(False, "--diff", help="Show differences only without syncing"),
     debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
 ) -> None:
-    """Synchronize store with remote repository (git backend only).
+    """Synchronize project files with store and remote repository.
 
-    This command synchronizes the STORE directory with the remote Git repository.
-    It does NOT sync project files - use 'ars pull' or 'ars push' for that.
+    This command performs bidirectional synchronization between:
+    - Project directory (current working directory)
+    - Store (~/.ar-sync-store)
+    - Remote Git repository
 
-    Operations:
-    1. Pull: Fetch changes from remote to store
-    2. Push: Commit local store changes and push to remote
+    Sync Phases:
+    1. Pull Phase: Remote → Store → Project
+    2. Change Detection: Compare Project ↔ Store
+    3. Conflict Resolution: Interactive or automatic
+    4. Push Phase: Project → Store → Remote
+
+    Conflict Resolution Options:
+    - Interactive (default): Prompt for each conflict [l]ocal/[r]emote/[m]erge/[s]kip
+    - --local: Automatically use project directory version for all conflicts
+    - --remote: Automatically use store version for all conflicts
 
     Examples:
-        ars sync                    # Full sync (pull + push)
+        ars sync                    # Full bidirectional sync (interactive)
         ars sync -m "Update"        # Full sync with custom commit message
-        ars sync --pull             # Only pull from remote
-        ars sync --push             # Only push to remote
+        ars sync --pull             # Only pull from remote to project
+        ars sync --push             # Only push from project to remote
+        ars sync --local            # Auto-resolve conflicts using local files
+        ars sync --remote           # Auto-resolve conflicts using remote files
+        ars sync --dry-run          # Preview what would change
+        ars sync --diff             # Show differences only
         ars sync --debug            # Show detailed logs
     """
     setup_logging(debug)
@@ -867,26 +1150,97 @@ def sync(
                     ]
                 )
 
-            if not push_only:
-                typer.echo("[1/2] Pulling changes from remote repository...")
-                pull_result = git_backend.pull()
-                if pull_result['files_changed'] > 0:
-                    typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote")
-                else:
-                    typer.echo("✓ No changes from remote (already up to date)")
+            # Validate --local and --remote mutual exclusivity (Requirement 6.3)
+            if local and remote:
+                raise ARSyncError(
+                    "Cannot use --local and --remote together",
+                    ErrorCategory.USER_INPUT,
+                    recovery_steps=[
+                        "Use --local to prefer project directory files for all conflicts",
+                        "Use --remote to prefer store files for all conflicts",
+                        "Or use neither for interactive conflict resolution"
+                    ]
+                )
 
-            if not pull_only:
-                typer.echo("[2/2] Committing and pushing local changes...")
-                push_result = git_backend.commit_and_push(message)
-                if push_result['committed']:
-                    typer.echo(f"✓ Committed {push_result['files_changed']} file(s)")
-                    typer.echo("✓ Pushed to remote")
+            # Get current project info for bidirectional sync
+            current_project = ProjectManager.get_current_project_name()
+            current_dir = Path.cwd()
+            store_manager = StoreManager(store_path)
+            
+            try:
+                project_info = store_manager.get_project(current_project)
+            except FileNotFoundError:
+                project_info = None
+            
+            # If project is registered, use BidirectionalSync
+            if project_info is not None:
+                # Create SyncOptions from CLI arguments (Requirement 6.1, 6.2, 7.1, 3.3, 9.1, 9.2)
+                if local:
+                    strategy = ResolutionStrategy.LOCAL
+                elif remote:
+                    strategy = ResolutionStrategy.REMOTE
                 else:
-                    typer.echo("✓ No local changes to push")
+                    strategy = ResolutionStrategy.INTERACTIVE
+                
+                sync_options = SyncOptions(
+                    strategy=strategy,
+                    dry_run=dry_run,
+                    diff_only=diff,
+                    pull_only=pull_only,
+                    push_only=push_only,
+                )
+                
+                # Get project store path (project-specific subdirectory)
+                project_store_path = store_path / current_project
+                
+                # Create BidirectionalSync instance
+                bidirectional_sync = BidirectionalSync(
+                    project_dir=current_dir,
+                    store_path=project_store_path,
+                    project_name=current_project,
+                    targets=project_info.targets,
+                    git_backend=git_backend,
+                )
+                
+                # Execute sync and get result
+                result = bidirectional_sync.sync(sync_options)
+                
+                # Display results with Rich formatting
+                _display_sync_result(result, dry_run, diff)
+                
+            else:
+                # Project not registered - fall back to legacy sync behavior
+                # Handle --diff mode (Requirement 3.3)
+                if diff:
+                    typer.echo("[DRY-RUN] Showing differences only (no changes will be made)\n")
+                    typer.echo("⚠️  Project not registered. Use 'ars init' or 'ars add' first for full diff support.")
+                    return
+
+                # Handle --dry-run mode (Requirement 7.1)
+                if dry_run:
+                    typer.echo("[DRY-RUN] Preview mode - no changes will be applied\n")
+                    typer.echo("⚠️  Project not registered. Use 'ars init' or 'ars add' first for full dry-run support.")
+
+                if not push_only:
+                    typer.echo("[1/2] Pulling changes from remote repository...")
+                    pull_result = git_backend.pull()
+                    if pull_result['files_changed'] > 0:
+                        typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote")
+                    else:
+                        typer.echo("✓ No changes from remote (already up to date)")
+
+                if not pull_only:
+                    typer.echo("[2/2] Committing and pushing local changes...")
+                    push_result = git_backend.commit_and_push(message)
+                    if push_result['committed']:
+                        typer.echo(f"✓ Committed {push_result['files_changed']} file(s)")
+                        typer.echo("✓ Pushed to remote")
+                    else:
+                        typer.echo("✓ No local changes to push")
         else:
             # Local backend: just sync metadata and pull missing targets
-            if pull_only or push_only or message:
-                typer.echo("⚠️  --pull, --push, -m options are only available for 'git' backend")
+            if pull_only or push_only or message or local or remote or dry_run or diff:
+                typer.echo("⚠️  --pull, --push, -m, --local, --remote, --dry-run, --diff options are only available for 'git' backend")
                 typer.echo("For 'local' backend, sync only updates metadata and pulls missing targets\n")
 
             typer.echo("Syncing metadata with store contents...")
@@ -932,6 +1286,15 @@ def sync(
                     for target in missing_targets:
                         source = store_path / current_project / target
                         dest = current_dir / target
+
+                        # Remove stale symlinks or existing files if needed
+                        if dest.is_symlink():
+                            dest.unlink()
+                        elif dest.exists():
+                            if dest.is_dir():
+                                shutil.rmtree(dest)
+                            else:
+                                dest.unlink()
 
                         if source.is_dir():
                             shutil.copytree(source, dest)

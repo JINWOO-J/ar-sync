@@ -62,6 +62,96 @@ class ARSyncError(Exception):
         return "\n".join(output)
 
 
+class SyncError(ARSyncError):
+    """Exception class for sync-specific errors.
+
+    Extends ARSyncError with file path information and automatic
+    recovery step generation based on error category.
+
+    Attributes:
+        message: Human-readable error description
+        category: Error category for classification
+        file_path: Optional path to the file that caused the error
+        recovery_steps: List of steps to resolve the issue
+    """
+
+    def __init__(
+        self,
+        message: str,
+        category: ErrorCategory,
+        file_path: str | None = None
+    ) -> None:
+        """Initialize SyncError.
+
+        Args:
+            message: Error description
+            category: Error category
+            file_path: Optional path to the file that caused the error
+        """
+        self.file_path = file_path
+        recovery_steps = self._get_recovery_steps(category)
+        super().__init__(message, category, recovery_steps)
+
+    def _get_recovery_steps(self, category: ErrorCategory) -> list[str]:
+        """Generate recovery steps based on error category.
+
+        Args:
+            category: The error category
+
+        Returns:
+            List of recovery step strings
+
+        Validates: Requirements 11.3, 11.4
+        """
+        steps: dict[ErrorCategory, list[str]] = {
+            ErrorCategory.CONFIG: [
+                "Run `ars setup` to initialize the store",
+                "Check that your configuration file exists at ~/.config/ar-sync/config.yaml",
+                "Verify the store path in your configuration is correct",
+            ],
+            ErrorCategory.FILE_SYSTEM: [
+                "Check file permissions with `ls -la`",
+                "Ensure you have write access to the target directory",
+                "Verify the file is not locked by another process",
+            ],
+            ErrorCategory.GIT: [
+                "Check your network connection",
+                "Verify your Git credentials are configured correctly",
+                "Run `git status` in the store directory to check for conflicts",
+                "Try running `git pull` manually in the store directory",
+            ],
+            ErrorCategory.USER_INPUT: [
+                "Check the command syntax with `ars --help`",
+                "Verify the project name or path is correct",
+            ],
+        }
+        return steps.get(category, [])
+
+    def format_error(self) -> str:
+        """Format error message with file path and recovery steps.
+
+        Returns:
+            Formatted error message string with file path and recovery guidance
+
+        Validates: Requirements 11.1
+        """
+        output = []
+        
+        # Include file path if available (Requirement 11.1)
+        if self.file_path:
+            output.append(f"Error: {self.message}")
+            output.append(f"  File: {self.file_path}")
+        else:
+            output.append(f"Error: {self.message}")
+
+        if self.recovery_steps:
+            output.append("\nTo resolve this issue:")
+            for i, step in enumerate(self.recovery_steps, 1):
+                output.append(f"  {i}. {step}")
+
+        return "\n".join(output)
+
+
 def get_symlink_error_guidance() -> str:
     """Get platform-specific symlink error guidance.
 
