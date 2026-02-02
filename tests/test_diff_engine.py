@@ -16,9 +16,6 @@ Requirements tested:
 """
 
 import os
-from pathlib import Path
-
-import pytest
 
 from ar_sync.sync.diff_engine import DiffEngine
 from ar_sync.sync.models import ChangeType

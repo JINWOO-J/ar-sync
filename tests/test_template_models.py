@@ -8,8 +8,6 @@ Requirements: 1.1, 1.2, 1.3, 1.4
 
 from pathlib import Path
 
-import pytest
-
 from ar_sync.template_models import CopyResult, TemplateMetadata
 
 

@@ -20,7 +20,7 @@ class TestSyncError:
 
     def test_sync_error_with_file_path(self):
         """Test SyncError stores file_path attribute correctly.
-        
+
         Validates: Requirement 11.1
         """
         error = SyncError(
@@ -41,7 +41,7 @@ class TestSyncError:
 
     def test_format_error_includes_file_path(self):
         """Test format_error() includes file path when available.
-        
+
         Validates: Requirement 11.1
         """
         error = SyncError(
@@ -50,7 +50,7 @@ class TestSyncError:
             file_path=".kiro/config.yaml"
         )
         formatted = error.format_error()
-        
+
         assert "Error: Permission denied" in formatted
         assert "File: .kiro/config.yaml" in formatted
 
@@ -58,24 +58,24 @@ class TestSyncError:
         """Test format_error() works without file path."""
         error = SyncError("Network error", ErrorCategory.GIT)
         formatted = error.format_error()
-        
+
         assert "Error: Network error" in formatted
         assert "File:" not in formatted
 
     def test_recovery_steps_for_config_category(self):
         """Test recovery steps are generated for CONFIG category.
-        
+
         Validates: Requirements 11.3, 11.4
         """
         error = SyncError("Store not initialized", ErrorCategory.CONFIG)
-        
+
         assert len(error.recovery_steps) > 0
         # Requirement 11.4: prompt user to run `ars setup`
         assert any("ars setup" in step for step in error.recovery_steps)
 
     def test_recovery_steps_for_file_system_category(self):
         """Test recovery steps are generated for FILE_SYSTEM category.
-        
+
         Validates: Requirement 11.3
         """
         error = SyncError(
@@ -83,43 +83,43 @@ class TestSyncError:
             ErrorCategory.FILE_SYSTEM,
             file_path="/path/to/file.txt"
         )
-        
+
         assert len(error.recovery_steps) > 0
         # Should include permission-related guidance
         assert any("permission" in step.lower() for step in error.recovery_steps)
 
     def test_recovery_steps_for_git_category(self):
         """Test recovery steps are generated for GIT category.
-        
+
         Validates: Requirement 11.3
         """
         error = SyncError("Failed to push to remote", ErrorCategory.GIT)
-        
+
         assert len(error.recovery_steps) > 0
         # Should include network or git-related guidance
-        assert any("network" in step.lower() or "git" in step.lower() 
+        assert any("network" in step.lower() or "git" in step.lower()
                    for step in error.recovery_steps)
 
     def test_recovery_steps_for_user_input_category(self):
         """Test recovery steps are generated for USER_INPUT category.
-        
+
         Validates: Requirement 11.3
         """
         error = SyncError("Invalid project name", ErrorCategory.USER_INPUT)
-        
+
         assert len(error.recovery_steps) > 0
         # Should include help or syntax guidance
-        assert any("help" in step.lower() or "syntax" in step.lower() 
+        assert any("help" in step.lower() or "syntax" in step.lower()
                    for step in error.recovery_steps)
 
     def test_format_error_includes_recovery_steps(self):
         """Test format_error() includes recovery steps.
-        
+
         Validates: Requirement 11.3
         """
         error = SyncError("Store not initialized", ErrorCategory.CONFIG)
         formatted = error.format_error()
-        
+
         assert "To resolve this issue:" in formatted
         assert "1." in formatted  # Numbered steps
 
@@ -131,7 +131,7 @@ class TestSyncError:
                 ErrorCategory.FILE_SYSTEM,
                 file_path="/test/path"
             )
-        
+
         assert str(exc_info.value) == "Test exception"
         assert exc_info.value.file_path == "/test/path"
 
@@ -150,9 +150,9 @@ class TestSyncError:
             file_path=".cursor/settings.json"
         )
         formatted = error.format_error()
-        
+
         lines = formatted.split("\n")
-        
+
         # First line should be error message
         assert lines[0] == "Error: Failed to sync file"
         # Second line should be file path

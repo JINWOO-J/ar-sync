@@ -136,7 +136,7 @@ class SyncError(ARSyncError):
         Validates: Requirements 11.1
         """
         output = []
-        
+
         # Include file path if available (Requirement 11.1)
         if self.file_path:
             output.append(f"Error: {self.message}")

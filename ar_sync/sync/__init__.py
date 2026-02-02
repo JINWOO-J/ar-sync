@@ -14,13 +14,13 @@ Components:
 # Data Models (always available)
 from ar_sync.sync.models import (
     ChangeType,
+    FileChange,
+    MergeResult,
     Resolution,
     ResolutionStrategy,
-    SyncOptions,
-    FileChange,
     ResolvedChange,
+    SyncOptions,
     SyncResult,
-    MergeResult,
 )
 
 __all__ = [
@@ -38,31 +38,31 @@ __all__ = [
 
 # Conditional imports for modules that may not exist yet
 try:
-    from ar_sync.sync.diff_engine import DiffEngine
+    from ar_sync.sync.diff_engine import DiffEngine  # noqa: F401
     __all__.append("DiffEngine")
 except ImportError:
     pass
 
 try:
-    from ar_sync.sync.merge_engine import MergeEngine
+    from ar_sync.sync.merge_engine import MergeEngine  # noqa: F401
     __all__.append("MergeEngine")
 except ImportError:
     pass
 
 try:
-    from ar_sync.sync.conflict_resolver import ConflictResolver
+    from ar_sync.sync.conflict_resolver import ConflictResolver  # noqa: F401
     __all__.append("ConflictResolver")
 except ImportError:
     pass
 
 try:
-    from ar_sync.sync.bidirectional_sync import BidirectionalSync
+    from ar_sync.sync.bidirectional_sync import BidirectionalSync  # noqa: F401
     __all__.append("BidirectionalSync")
 except ImportError:
     pass
 
 try:
-    from ar_sync.sync.atomic_ops import AtomicFileOperation
+    from ar_sync.sync.atomic_ops import AtomicFileOperation  # noqa: F401
     __all__.append("AtomicFileOperation")
 except ImportError:
     pass

@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.prompt import Confirm
 from rich.table import Table
 
@@ -302,14 +302,14 @@ class TemplateCopier:
                 try:
                     # 개별 템플릿에 대한 force 여부 결정
                     should_force = force or force_for_overwrite.get(template.path, False)
-                    target_path = self.copy_single_template(template, force=should_force)
+                    target_path_result = self.copy_single_template(template, force=should_force)
 
-                    if target_path:
-                        result.success.append(target_path)
+                    if target_path_result:
+                        result.success.append(target_path_result)
                     else:
                         # 이미 존재하고 force가 아닌 경우 (이론적으로 여기 도달하지 않음)
-                        target_path = self._get_target_path(template)
-                        result.skipped.append(target_path)
+                        target_path_fallback = self._get_target_path(template)
+                        result.skipped.append(target_path_fallback)
 
                 except ARSyncError as e:
                     # Requirement 3.7: 오류 발생 시 오류 메시지 표시하고 계속 진행

@@ -7,9 +7,9 @@ Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 """
 
 from rich.console import Console
+from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.panel import Panel
 
 from ar_sync.template_manager import TemplateManager
 from ar_sync.template_models import TemplateMetadata

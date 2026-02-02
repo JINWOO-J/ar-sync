@@ -1,0 +1,42 @@
+# Text files should always use LF line endings
+* text=auto
+
+# Explicitly declare text files
+*.py text
+*.md text
+*.txt text
+*.yaml text
+*.yml text
+*.json text
+*.toml text
+*.ini text
+*.cfg text
+
+# Shell scripts
+*.sh text eol=lf
+Makefile text eol=lf
+
+# Documentation
+*.rst text
+LICENSE text
+README text
+README.md text
+CHANGELOG text
+CHANGELOG.md text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.pyc binary
+*.pyo binary
+*.so binary
+*.dylib binary
+*.dll binary
+*.exe binary

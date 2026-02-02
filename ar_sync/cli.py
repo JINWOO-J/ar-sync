@@ -7,6 +7,7 @@ import logging
 import shutil
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -19,6 +20,12 @@ from ar_sync.project_manager import ProjectManager
 from ar_sync.store_manager import StoreManager
 from ar_sync.sync.bidirectional_sync import BidirectionalSync
 from ar_sync.sync.models import ResolutionStrategy, SyncOptions, SyncResult
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+    from ar_sync.template_manager import TemplateManager
+    from ar_sync.template_models import TemplateMetadata
 
 # Global debug flag
 DEBUG_MODE = False
@@ -423,11 +430,10 @@ def _handle_template_init(
         search: Search query
     """
     from rich.console import Console
-    from rich.table import Table
 
+    from ar_sync.template_copier import TemplateCopier
     from ar_sync.template_manager import TemplateManager
     from ar_sync.template_selector import TemplateSelector
-    from ar_sync.template_copier import TemplateCopier
 
     console = Console()
 
@@ -489,8 +495,7 @@ def _list_templates(
         category: Filter by category
         search: Search query
     """
-    from rich.table import Table
-    from ar_sync.template_manager import TemplateManager as TM
+    from ar_sync.template_manager import TemplateManager
 
     console.print("\n[bold cyan]📚 사용 가능한 템플릿[/bold cyan]")
 
@@ -504,20 +509,20 @@ def _list_templates(
             return
 
         # Group by category
-        by_category: dict[str, list] = {}
+        by_category: dict[str, list[TemplateMetadata]] = {}
         for t in templates:
             if t.category not in by_category:
                 by_category[t.category] = []
             by_category[t.category].append(t)
 
-        for cat in TM.CATEGORIES:
+        for cat in TemplateManager.CATEGORIES:
             if cat in by_category:
                 _print_category_table(console, cat, by_category[cat])
     else:
         # Show all templates
         all_templates = template_manager.scan_templates()
 
-        categories_to_show = [category] if category else TM.CATEGORIES
+        categories_to_show = [category] if category else TemplateManager.CATEGORIES
 
         for cat in categories_to_show:
             templates = all_templates.get(cat, [])
@@ -528,7 +533,7 @@ def _list_templates(
     console.print("[dim]카테고리 필터: ars init --list --category agents[/dim]")
 
 
-def _print_category_table(console: "Console", category: str, templates: list) -> None:
+def _print_category_table(console: "Console", category: str, templates: list["TemplateMetadata"]) -> None:
     """Print a table of templates for a category.
 
     Args:
@@ -997,67 +1002,66 @@ def status(
 
 def _display_sync_result(result: SyncResult, dry_run: bool, diff_only: bool) -> None:
     """Display sync result with Rich formatting.
-    
+
     Args:
         result: SyncResult from BidirectionalSync.sync()
         dry_run: Whether this was a dry-run operation
         diff_only: Whether this was a diff-only operation
-        
+
     Validates:
     - Requirement 1.2: Display the number of files changed from remote
     - Requirement 1.3: Display "already up to date" message when no changes
     - Requirement 8.1, 8.2, 8.3: Display push results
     """
     from rich.console import Console
-    from rich.panel import Panel
     from rich.table import Table
-    
+
     console = Console()
-    
+
     # For diff-only mode, result display is handled by BidirectionalSync
     if diff_only:
         return
-    
+
     # Build summary
     prefix = "[DRY-RUN] " if dry_run else ""
-    
+
     # Create summary table
     table = Table(show_header=False, box=None)
     table.add_column("Metric", style="dim")
     table.add_column("Value", style="bold")
-    
+
     if result.pulled_files > 0:
         table.add_row("Files pulled from remote:", f"{result.pulled_files}")
-    
+
     if result.conflicts_resolved > 0:
         table.add_row("Conflicts resolved:", f"{result.conflicts_resolved}")
-    
+
     if result.pushed_files > 0:
         table.add_row("Files pushed to remote:", f"{result.pushed_files}")
-    
+
     if result.skipped_files:
         table.add_row("Files skipped:", f"{len(result.skipped_files)}")
-    
+
     if result.errors:
         table.add_row("Errors:", f"[red]{len(result.errors)}[/red]")
-    
+
     # Display summary if there's anything to show
     if table.row_count > 0:
         console.print(f"\n{prefix}[bold]Sync Summary:[/bold]")
         console.print(table)
-    
+
     # Display errors if any
     if result.errors:
         console.print(f"\n{prefix}[red bold]Errors:[/red bold]")
         for error in result.errors:
             console.print(f"  [red]• {error}[/red]")
-    
+
     # Display skipped files if any
     if result.skipped_files:
         console.print(f"\n{prefix}[yellow]Skipped files:[/yellow]")
         for skipped in result.skipped_files:
             console.print(f"  [dim]• {skipped}[/dim]")
-    
+
     # Final status message
     if not result.errors:
         if dry_run:
@@ -1065,9 +1069,9 @@ def _display_sync_result(result: SyncResult, dry_run: bool, diff_only: bool) -> 
         else:
             total_changes = result.pulled_files + result.conflicts_resolved + result.pushed_files
             if total_changes > 0:
-                console.print(f"\n[green]✓ Sync complete![/green]")
+                console.print("\n[green]✓ Sync complete![/green]")
             else:
-                console.print(f"\n[green]✓ Already in sync. No changes needed.[/green]")
+                console.print("\n[green]✓ Already in sync. No changes needed.[/green]")
     else:
         console.print(f"\n{prefix}[yellow]⚠️  Sync completed with errors.[/yellow]")
 
@@ -1166,12 +1170,12 @@ def sync(
             current_project = ProjectManager.get_current_project_name()
             current_dir = Path.cwd()
             store_manager = StoreManager(store_path)
-            
+
             try:
                 project_info = store_manager.get_project(current_project)
             except FileNotFoundError:
                 project_info = None
-            
+
             # If project is registered, use BidirectionalSync
             if project_info is not None:
                 # Create SyncOptions from CLI arguments (Requirement 6.1, 6.2, 7.1, 3.3, 9.1, 9.2)
@@ -1181,7 +1185,7 @@ def sync(
                     strategy = ResolutionStrategy.REMOTE
                 else:
                     strategy = ResolutionStrategy.INTERACTIVE
-                
+
                 sync_options = SyncOptions(
                     strategy=strategy,
                     dry_run=dry_run,
@@ -1189,10 +1193,10 @@ def sync(
                     pull_only=pull_only,
                     push_only=push_only,
                 )
-                
+
                 # Get project store path (project-specific subdirectory)
                 project_store_path = store_path / current_project
-                
+
                 # Create BidirectionalSync instance
                 bidirectional_sync = BidirectionalSync(
                     project_dir=current_dir,
@@ -1201,13 +1205,13 @@ def sync(
                     targets=project_info.targets,
                     git_backend=git_backend,
                 )
-                
+
                 # Execute sync and get result
                 result = bidirectional_sync.sync(sync_options)
-                
+
                 # Display results with Rich formatting
                 _display_sync_result(result, dry_run, diff)
-                
+
             else:
                 # Project not registered - fall back to legacy sync behavior
                 # Handle --diff mode (Requirement 3.3)

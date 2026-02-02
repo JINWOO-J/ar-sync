@@ -55,7 +55,7 @@ class TemplateManager:
             )
 
     @staticmethod
-    def parse_frontmatter(content: str) -> tuple[dict, str]:
+    def parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
         """YAML frontmatter 파싱.
 
         파일 내용에서 YAML frontmatter를 추출하고 파싱합니다.

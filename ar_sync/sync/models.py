@@ -19,7 +19,7 @@ from pathlib import Path
 
 class ChangeType(Enum):
     """Type of change detected between Project and Store.
-    
+
     Used by DiffEngine to categorize file differences.
     """
     ADDED_LOCAL = "added_local"      # File exists only in Project
@@ -30,7 +30,7 @@ class ChangeType(Enum):
 
 class Resolution(Enum):
     """Resolution choice for a conflict.
-    
+
     Validates: Requirement 5.1 - Interactive options [l]ocal/[r]emote/[m]erge/[s]kip
     """
     USE_LOCAL = "local"    # Copy Project version to Store
@@ -41,7 +41,7 @@ class Resolution(Enum):
 
 class ResolutionStrategy(Enum):
     """Strategy for resolving conflicts.
-    
+
     Validates:
     - Requirement 6.1: --local option for automatic local preference
     - Requirement 6.2: --remote option for automatic remote preference
@@ -54,7 +54,7 @@ class ResolutionStrategy(Enum):
 @dataclass
 class SyncOptions:
     """Options for sync operation.
-    
+
     Validates:
     - Requirement 6.1, 6.2: strategy field for automatic resolution
     - Requirement 7.1: dry_run field for preview mode
@@ -69,7 +69,7 @@ class SyncOptions:
 @dataclass
 class FileChange:
     """Represents a detected change between Project and Store.
-    
+
     Used by DiffEngine to report comparison results.
     """
     path: str                        # Relative path from project/store root
@@ -83,7 +83,7 @@ class FileChange:
 @dataclass
 class ResolvedChange:
     """Represents a resolved conflict.
-    
+
     Used by ConflictResolver to track resolution decisions.
     """
     file_change: FileChange
@@ -94,7 +94,7 @@ class ResolvedChange:
 @dataclass
 class SyncResult:
     """Result of a sync operation.
-    
+
     Returned by BidirectionalSync.sync() to report operation summary.
     """
     pulled_files: int
@@ -107,7 +107,7 @@ class SyncResult:
 @dataclass
 class MergeResult:
     """Result of a merge operation.
-    
+
     Returned by MergeEngine.merge_files() to report merge outcome.
     """
     success: bool

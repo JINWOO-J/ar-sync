@@ -6,14 +6,11 @@ template scanning, and search functionality.
 Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.3
 """
 
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from ar_sync.errors import ARSyncError
 from ar_sync.template_manager import TemplateManager
-from ar_sync.template_models import TemplateMetadata
 
 
 class TestParseFrontmatter:

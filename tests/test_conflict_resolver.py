@@ -18,7 +18,6 @@ Requirements tested:
 """
 
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -57,7 +56,7 @@ def sample_change(tmp_path):
     remote_path.parent.mkdir(parents=True, exist_ok=True)
     local_path.write_text("local content\n")
     remote_path.write_text("remote content\n")
-    
+
     return FileChange(
         path="test.txt",
         change_type=ChangeType.MODIFIED,
@@ -77,7 +76,7 @@ def binary_change(tmp_path):
     remote_path.parent.mkdir(parents=True, exist_ok=True)
     local_path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
     remote_path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x01' * 100)
-    
+
     return FileChange(
         path="image.png",
         change_type=ChangeType.MODIFIED,
@@ -108,7 +107,7 @@ class TestResolveAutomatic:
     def test_resolve_automatic_local_strategy(self, resolver, sample_change):
         """Requirement 6.1: --local option prefers Project_Directory files."""
         result = resolver.resolve_automatic(sample_change, ResolutionStrategy.LOCAL)
-        
+
         assert isinstance(result, ResolvedChange)
         assert result.file_change is sample_change
         assert result.resolution == Resolution.USE_LOCAL
@@ -117,7 +116,7 @@ class TestResolveAutomatic:
     def test_resolve_automatic_remote_strategy(self, resolver, sample_change):
         """Requirement 6.2: --remote option prefers Store files."""
         result = resolver.resolve_automatic(sample_change, ResolutionStrategy.REMOTE)
-        
+
         assert isinstance(result, ResolvedChange)
         assert result.file_change is sample_change
         assert result.resolution == Resolution.USE_REMOTE
@@ -131,7 +130,7 @@ class TestResolveAutomatic:
     def test_resolve_automatic_displays_result(self, resolver, sample_change, console):
         """Requirement 6.4: Display which files were resolved and how."""
         resolver.resolve_automatic(sample_change, ResolutionStrategy.LOCAL)
-        
+
         output = console.file.getvalue()
         assert "test.txt" in output
         assert "local" in output.lower()
@@ -143,7 +142,7 @@ class TestDisplayConflict:
     def test_display_conflict_shows_path(self, resolver, sample_change, console):
         """Requirement 4.2: Display format `[Conflict] <file_path>`."""
         resolver.display_conflict(sample_change)
-        
+
         output = console.file.getvalue()
         assert "[Conflict]" in output
         assert "test.txt" in output
@@ -151,7 +150,7 @@ class TestDisplayConflict:
     def test_display_conflict_shows_diff(self, resolver, sample_change, console):
         """Requirement 4.4: Display both local and remote versions in diff output."""
         resolver.display_conflict(sample_change)
-        
+
         output = console.file.getvalue()
         # Diff output should be displayed
         assert "Diff" in output or "diff" in output.lower()
@@ -159,7 +158,7 @@ class TestDisplayConflict:
     def test_display_conflict_shows_change_type(self, resolver, sample_change, console):
         """Test that change type is displayed."""
         resolver.display_conflict(sample_change)
-        
+
         output = console.file.getvalue()
         # Should show some indication of the change type
         assert "modified" in output.lower() or "Type" in output
@@ -167,7 +166,7 @@ class TestDisplayConflict:
     def test_display_conflict_shows_file_locations(self, resolver, sample_change, console):
         """Test that file locations are displayed."""
         resolver.display_conflict(sample_change)
-        
+
         output = console.file.getvalue()
         # Should show local and remote paths
         assert "Local" in output or "local" in output
@@ -176,7 +175,7 @@ class TestDisplayConflict:
     def test_display_conflict_binary_warning(self, resolver, binary_change, console):
         """Requirement 5.7: Show warning for binary files."""
         resolver.display_conflict(binary_change)
-        
+
         output = console.file.getvalue()
         assert "binary" in output.lower()
 
@@ -196,9 +195,9 @@ class TestDisplayConflictsSummary:
             )
             for i in range(3)
         ]
-        
+
         resolver.display_conflicts_summary(changes)
-        
+
         output = console.file.getvalue()
         assert "3 conflict" in output.lower()
         assert "file0.txt" in output
@@ -208,14 +207,14 @@ class TestDisplayConflictsSummary:
     def test_display_conflicts_summary_empty_list(self, resolver, console):
         """Test display with no conflicts."""
         resolver.display_conflicts_summary([])
-        
+
         output = console.file.getvalue()
         assert "No conflicts" in output or "no conflict" in output.lower()
 
     def test_display_conflicts_summary_shows_binary_indicator(self, resolver, binary_change, console):
         """Test that binary files are indicated in summary."""
         resolver.display_conflicts_summary([binary_change])
-        
+
         output = console.file.getvalue()
         assert "binary" in output.lower()
 
@@ -226,96 +225,96 @@ class TestPromptResolution:
     def test_prompt_resolution_local_choice(self, sample_change, console):
         """Requirement 5.1: User can select [l]ocal."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='l'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_LOCAL
 
     def test_prompt_resolution_remote_choice(self, sample_change, console):
         """Requirement 5.1: User can select [r]emote."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='r'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_REMOTE
 
     def test_prompt_resolution_merge_choice(self, sample_change, console):
         """Requirement 5.1: User can select [m]erge."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='m'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.MERGE
 
     def test_prompt_resolution_skip_choice(self, sample_change, console):
         """Requirement 5.1: User can select [s]kip."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='s'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.SKIP
 
     def test_prompt_resolution_binary_no_merge(self, binary_change, console):
         """Requirement 5.7: Merge option disabled for binary files."""
         resolver = ConflictResolver(console=console)
-        
+
         # First try 'm', then 'l' when merge is rejected
         inputs = iter(['m', 'l'])
         with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
             result = resolver.prompt_resolution(binary_change)
-        
+
         # Should end up with local since merge is not available
         assert result == Resolution.USE_LOCAL
 
     def test_prompt_resolution_invalid_then_valid(self, sample_change, console):
         """Test that invalid input prompts again."""
         resolver = ConflictResolver(console=console)
-        
+
         # First invalid, then valid
         inputs = iter(['x', 'l'])
         with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_LOCAL
 
     def test_prompt_resolution_keyboard_interrupt(self, sample_change, console):
         """Test that Ctrl+C results in skip."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', side_effect=KeyboardInterrupt):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.SKIP
 
     def test_prompt_resolution_eof(self, sample_change, console):
         """Test that EOF results in skip."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', side_effect=EOFError):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.SKIP
 
     def test_prompt_resolution_uppercase_input(self, sample_change, console):
         """Test that uppercase input is accepted."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='L'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_LOCAL
 
     def test_prompt_resolution_word_input(self, sample_change, console):
         """Test that full word input uses first character."""
         resolver = ConflictResolver(console=console)
-        
+
         with patch.object(console, 'input', return_value='local'):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_LOCAL
 
 
@@ -326,10 +325,10 @@ class TestResolveInteractive:
         """Requirement 5.2: Local selection returns USE_LOCAL resolution."""
         resolver = ConflictResolver(console=console)
         merge_engine = MergeEngine()
-        
+
         with patch.object(console, 'input', return_value='l'):
             result = resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         assert result.resolution == Resolution.USE_LOCAL
         assert result.file_change is sample_change
         assert result.merged_content is None
@@ -338,10 +337,10 @@ class TestResolveInteractive:
         """Requirement 5.3: Remote selection returns USE_REMOTE resolution."""
         resolver = ConflictResolver(console=console)
         merge_engine = MergeEngine()
-        
+
         with patch.object(console, 'input', return_value='r'):
             result = resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         assert result.resolution == Resolution.USE_REMOTE
         assert result.file_change is sample_change
         assert result.merged_content is None
@@ -350,10 +349,10 @@ class TestResolveInteractive:
         """Requirement 5.5: Skip selection returns SKIP resolution."""
         resolver = ConflictResolver(console=console)
         merge_engine = MergeEngine()
-        
+
         with patch.object(console, 'input', return_value='s'):
             result = resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         assert result.resolution == Resolution.SKIP
         assert result.file_change is sample_change
         assert result.merged_content is None
@@ -361,7 +360,7 @@ class TestResolveInteractive:
     def test_resolve_interactive_merge_success(self, sample_change, console):
         """Test successful merge returns merged content."""
         resolver = ConflictResolver(console=console)
-        
+
         # Mock merge engine to return successful merge
         merge_engine = MagicMock(spec=MergeEngine)
         merge_engine.merge_files.return_value = MergeResult(
@@ -370,17 +369,17 @@ class TestResolveInteractive:
             has_conflicts=False,
             conflict_markers=[],
         )
-        
+
         with patch.object(console, 'input', return_value='m'):
             result = resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         assert result.resolution == Resolution.MERGE
         assert result.merged_content == "merged content\n"
 
     def test_resolve_interactive_merge_with_conflicts(self, sample_change, console):
         """Test merge with conflicts still returns content."""
         resolver = ConflictResolver(console=console)
-        
+
         # Mock merge engine to return merge with conflicts
         merge_engine = MagicMock(spec=MergeEngine)
         merge_engine.merge_files.return_value = MergeResult(
@@ -389,10 +388,10 @@ class TestResolveInteractive:
             has_conflicts=True,
             conflict_markers=[(1, 5)],
         )
-        
+
         with patch.object(console, 'input', return_value='m'):
             result = resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         assert result.resolution == Resolution.MERGE
         assert result.merged_content is not None
         assert "<<<<<<" in result.merged_content
@@ -401,10 +400,10 @@ class TestResolveInteractive:
         """Test that conflict is displayed before prompting."""
         resolver = ConflictResolver(console=console)
         merge_engine = MergeEngine()
-        
+
         with patch.object(console, 'input', return_value='l'):
             resolver.resolve_interactive(sample_change, merge_engine)
-        
+
         output = console.file.getvalue()
         assert "[Conflict]" in output
         assert "test.txt" in output
@@ -422,9 +421,9 @@ class TestChangeTypeIndicators:
             remote_path=None,
             is_binary=False,
         )
-        
+
         resolver.display_conflict(change)
-        
+
         output = console.file.getvalue()
         assert "project" in output.lower() or "local" in output.lower()
 
@@ -437,16 +436,16 @@ class TestChangeTypeIndicators:
             remote_path=tmp_path / "new_remote.txt",
             is_binary=False,
         )
-        
+
         resolver.display_conflict(change)
-        
+
         output = console.file.getvalue()
         assert "store" in output.lower() or "remote" in output.lower()
 
     def test_modified_indicator(self, resolver, sample_change, console):
         """Test indicator for modified files."""
         resolver.display_conflict(sample_change)
-        
+
         output = console.file.getvalue()
         assert "modified" in output.lower() or "both" in output.lower()
 
@@ -464,10 +463,10 @@ class TestEdgeCases:
             is_binary=False,
             diff_output=None,
         )
-        
+
         # Should not raise an error
         resolver.display_conflict(change)
-        
+
         output = console.file.getvalue()
         assert "[Conflict]" in output
 
@@ -480,10 +479,10 @@ class TestEdgeCases:
             remote_path=tmp_path / "remote.txt",
             is_binary=False,
         )
-        
+
         # Should not raise an error
         resolver.display_conflict(change)
-        
+
         output = console.file.getvalue()
         assert "[Conflict]" in output
 
@@ -496,10 +495,10 @@ class TestEdgeCases:
             remote_path=None,
             is_binary=False,
         )
-        
+
         # Should not raise an error
         resolver.display_conflict(change)
-        
+
         output = console.file.getvalue()
         assert "[Conflict]" in output
 
@@ -507,7 +506,7 @@ class TestEdgeCases:
         """Test merge fails gracefully when paths are missing."""
         resolver = ConflictResolver(console=console)
         merge_engine = MergeEngine()
-        
+
         change = FileChange(
             path="test.txt",
             change_type=ChangeType.ADDED_LOCAL,
@@ -515,22 +514,22 @@ class TestEdgeCases:
             remote_path=None,  # Missing remote
             is_binary=False,
         )
-        
+
         # First try merge, then skip when it fails
         inputs = iter(['m', 's'])
         with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
             result = resolver.resolve_interactive(change, merge_engine)
-        
+
         # Should fall back to skip
         assert result.resolution == Resolution.SKIP
 
     def test_empty_input_prompts_again(self, sample_change, console):
         """Test that empty input prompts again."""
         resolver = ConflictResolver(console=console)
-        
+
         # Empty string, then valid input
         inputs = iter(['', 'l'])
         with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
             result = resolver.prompt_resolution(sample_change)
-        
+
         assert result == Resolution.USE_LOCAL

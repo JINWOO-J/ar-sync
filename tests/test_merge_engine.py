@@ -8,12 +8,9 @@ Requirements tested:
 - 5.7: If the file is binary, disable the merge option and only allow local/remote/skip
 """
 
-from pathlib import Path
 
-import pytest
 
 from ar_sync.sync.merge_engine import MergeEngine
-from ar_sync.sync.models import MergeResult
 
 
 class TestMergeEngineBasicMerge:

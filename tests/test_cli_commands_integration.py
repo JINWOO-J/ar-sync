@@ -1,6 +1,5 @@
 """Integration tests for CLI commands to improve coverage."""
 
-from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -46,13 +45,13 @@ class TestSetupCommand:
     def test_setup_with_local_backend(self, runner, temp_env):
         """Test setup command with local backend."""
         store_dir = temp_env["store_dir"]
-        
+
         result = runner.invoke(app, [
             "setup",
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         assert result.exit_code == 0
         assert "Configuration saved" in result.stdout
         assert "Store directory created" in result.stdout
@@ -65,7 +64,7 @@ class TestSetupCommand:
             "--backend", "invalid",
             "--path", str(temp_env["store_dir"])
         ])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Unsupported backend" in output
@@ -76,7 +75,7 @@ class TestSetupCommand:
             "setup",
             "--backend", "local"
         ])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store path is required" in output
@@ -88,7 +87,7 @@ class TestSetupCommand:
             "--backend", "git",
             "--path", str(temp_env["store_dir"])
         ])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Repository URL is required" in output
@@ -96,26 +95,26 @@ class TestSetupCommand:
     def test_setup_updates_existing_config(self, runner, temp_env):
         """Test that setup can update existing configuration."""
         store_dir = temp_env["store_dir"]
-        
+
         # First setup
         runner.invoke(app, [
             "setup",
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         # Update with new path
         new_store = temp_env["tmp_path"] / "new-store"
         new_store.mkdir()
-        
+
         result = runner.invoke(app, [
             "setup",
             "--backend", "local",
             "--path", str(new_store)
         ])
-        
+
         assert result.exit_code == 0
-        
+
         # Verify config was updated
         config_manager = ConfigManager()
         config = config_manager.load()
@@ -130,9 +129,9 @@ class TestInitCommand:
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["init"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Global configuration not found" in output
@@ -146,14 +145,14 @@ class TestInitCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         # Create empty project directory
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["init"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "No target files found" in output
@@ -167,18 +166,18 @@ class TestInitCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         # Create project with targets
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         (project_dir / ".kiro").mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["init", "--name", "custom-name"])
-        
+
         assert result.exit_code == 0
         assert "custom-name" in result.stdout
-        
+
         # Verify project was added with custom name
         store_manager = StoreManager(store_dir)
         project = store_manager.get_project("custom-name")
@@ -193,15 +192,15 @@ class TestInitCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         # Create project with custom targets
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         (project_dir / "custom.txt").write_text("custom")
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["init", "--targets", "custom.txt"])
-        
+
         assert result.exit_code == 0
         assert "custom.txt" in result.stdout
 
@@ -214,9 +213,9 @@ class TestAddCommand:
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["add"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -230,9 +229,9 @@ class TestLinkCommand:
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["link"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -246,13 +245,13 @@ class TestLinkCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["link", "--project", "nonexistent"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "not found in store" in output
@@ -272,13 +271,13 @@ class TestLinkCommand:
         )
         config_manager = ConfigManager()
         config_manager.save(config)
-        
+
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["link"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store directory does not exist" in output
@@ -290,7 +289,7 @@ class TestStatusCommand:
     def test_status_without_setup(self, runner, temp_env):
         """Test status command without prior setup."""
         result = runner.invoke(app, ["status"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -304,9 +303,9 @@ class TestStatusCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["status"])
-        
+
         assert result.exit_code == 0
         assert "No projects registered" in result.stdout
 
@@ -325,9 +324,9 @@ class TestStatusCommand:
         )
         config_manager = ConfigManager()
         config_manager.save(config)
-        
+
         result = runner.invoke(app, ["status"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store directory does not exist" in output
@@ -339,7 +338,7 @@ class TestSyncCommand:
     def test_sync_without_setup(self, runner, temp_env):
         """Test sync command without prior setup."""
         result = runner.invoke(app, ["sync"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -354,9 +353,9 @@ class TestSyncCommand:
             "--path", str(store_dir),
             "--repo-url", "git@github.com:test/repo.git"
         ])
-        
+
         result = runner.invoke(app, ["sync", "--pull", "--push"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Cannot use --pull and --push together" in output
@@ -371,9 +370,9 @@ class TestSyncCommand:
             "--path", str(store_dir),
             "--repo-url", "git@github.com:test/repo.git"
         ])
-        
+
         result = runner.invoke(app, ["sync", "--local", "--remote"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Cannot use --local and --remote together" in output
@@ -388,16 +387,16 @@ class TestSyncCommand:
             "--path", str(store_dir),
             "--repo-url", "git@github.com:test/repo.git"
         ])
-        
+
         result = runner.invoke(app, ["sync", "--diff"])
-        
+
         assert result.exit_code == 0
         assert "[DRY-RUN]" in result.stdout
         assert "differences only" in result.stdout
 
     def test_sync_with_dry_run_option(self, runner, temp_env):
         """Test sync command with --dry-run option (Requirement 7.1).
-        
+
         Note: Full dry-run functionality will be implemented in task 9.2.
         This test verifies the option is recognized and displays the preview message.
         """
@@ -408,9 +407,9 @@ class TestSyncCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["sync", "--dry-run"])
-        
+
         # For local backend, new options show warning message
         assert result.exit_code == 0
         assert "only available for 'git' backend" in result.stdout
@@ -424,9 +423,9 @@ class TestSyncCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["sync", "--pull", "-m", "test message"])
-        
+
         assert result.exit_code == 0
         assert "only available for 'git' backend" in result.stdout
 
@@ -439,9 +438,9 @@ class TestSyncCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["sync", "--local", "--dry-run", "--diff"])
-        
+
         assert result.exit_code == 0
         assert "only available for 'git' backend" in result.stdout
 
@@ -454,9 +453,9 @@ class TestPullCommand:
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["pull"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -470,13 +469,13 @@ class TestPullCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["pull", "--project", "nonexistent"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "not found in store" in output
@@ -496,13 +495,13 @@ class TestPullCommand:
         )
         config_manager = ConfigManager()
         config_manager.save(config)
-        
+
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["pull"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store directory does not exist" in output
@@ -516,9 +515,9 @@ class TestPushCommand:
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["push"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Store not initialized" in output
@@ -532,13 +531,13 @@ class TestPushCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
-        
+
         result = runner.invoke(app, ["push", "--project", "nonexistent"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "not found in store" in output
@@ -550,7 +549,7 @@ class TestConfigCommand:
     def test_config_show_without_setup(self, runner, temp_env):
         """Test config --show without prior setup."""
         result = runner.invoke(app, ["config", "--show"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Configuration not found" in output
@@ -564,9 +563,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--show"])
-        
+
         assert result.exit_code == 0
         assert "Current configuration" in result.stdout
         assert "Backend:" in result.stdout
@@ -581,9 +580,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--backend", "git", "--repo-url", "git@github.com:test/repo.git"])
-        
+
         assert result.exit_code == 0
         assert "Backend set to: git" in result.stdout
 
@@ -596,9 +595,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--backend", "invalid"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Invalid backend" in output
@@ -612,9 +611,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--targets", ".vscode,.idea"])
-        
+
         assert result.exit_code == 0
         assert "Default targets set to" in result.stdout
 
@@ -627,9 +626,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--auto-sync", "true"])
-        
+
         assert result.exit_code == 0
         assert "Auto sync set to: True" in result.stdout
 
@@ -642,9 +641,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config", "--auto-sync", "invalid"])
-        
+
         assert result.exit_code == 1
         output = result.stdout + result.stderr
         assert "Invalid auto-sync value" in output
@@ -658,9 +657,9 @@ class TestConfigCommand:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["config"])
-        
+
         assert result.exit_code == 0
         assert "Current configuration" in result.stdout
 
@@ -671,14 +670,14 @@ class TestVersionOption:
     def test_version_option(self, runner):
         """Test that --version displays version."""
         result = runner.invoke(app, ["--version"])
-        
+
         assert result.exit_code == 0
         assert "ar-sync version" in result.stdout
 
     def test_version_short_option(self, runner):
         """Test that -v displays version."""
         result = runner.invoke(app, ["-v"])
-        
+
         assert result.exit_code == 0
         assert "ar-sync version" in result.stdout
 
@@ -689,14 +688,14 @@ class TestDebugOption:
     def test_debug_option_with_setup(self, runner, temp_env):
         """Test that --debug option works with setup command."""
         store_dir = temp_env["store_dir"]
-        
+
         result = runner.invoke(app, [
             "setup",
             "--backend", "local",
             "--path", str(store_dir),
             "--debug"
         ])
-        
+
         # Debug mode should not affect success
         assert result.exit_code == 0
 
@@ -709,7 +708,7 @@ class TestDebugOption:
             "--backend", "local",
             "--path", str(store_dir)
         ])
-        
+
         result = runner.invoke(app, ["status", "--debug"])
-        
+
         assert result.exit_code == 0
