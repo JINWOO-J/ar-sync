@@ -8,6 +8,7 @@ This module defines the core data structures used throughout ar-sync:
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -20,7 +21,7 @@ class LocalConfig:
         version: Configuration file format version (currently 1)
         backend: Storage backend type ("git" or "local")
         store_path: Local filesystem path where store is located
-        repo_url: Git repository URL (only for "git" backend, optional for "local")
+        repo_url: Git repository URL (optional, only for "git" backend)
         default_targets: List of default target directories to sync (e.g., [".cursor", ".kiro"])
         auto_sync: Whether to automatically sync after operations
         backup_originals: Whether to backup existing files before linking
@@ -29,11 +30,11 @@ class LocalConfig:
     version: int
     backend: str
     store_path: str
-    repo_url: str
-    default_targets: list[str]
-    auto_sync: bool
-    backup_originals: bool
-    backup_dir: str
+    repo_url: Optional[str] = None
+    default_targets: list[str] = field(default_factory=list)
+    auto_sync: bool = False
+    backup_originals: bool = True
+    backup_dir: str = ""
 
 
 @dataclass

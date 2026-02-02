@@ -17,13 +17,13 @@ except ImportError:
 class GitBackend:
     """Git backend for managing repository operations."""
 
-    def __init__(self, store_path: Path, repo_url: str):
+    def __init__(self, store_path: Path, repo_url: str | None = None):
         """
         Initialize Git backend.
 
         Args:
             store_path: Path to the local store directory
-            repo_url: URL of the remote Git repository
+            repo_url: URL of the remote Git repository (optional for local-only use)
         """
         self.store_path = Path(store_path)
         self.repo_url = repo_url
@@ -62,7 +62,8 @@ class GitBackend:
         Initialize Git repository at store path.
 
         If the store path already contains a Git repository, it will be opened.
-        Otherwise, a new repository will be created and the remote will be added.
+        Otherwise, a new repository will be created and the remote will be added
+        (if repo_url is provided).
 
         Raises:
             RuntimeError: If repository initialization fails
@@ -79,8 +80,8 @@ class GitBackend:
             self.store_path.mkdir(parents=True, exist_ok=True)
             self.repo = Repo.init(self.store_path)
 
-            # Add remote
-            if 'origin' not in [remote.name for remote in self.repo.remotes]:
+            # Add remote only if repo_url is provided
+            if self.repo_url and 'origin' not in [remote.name for remote in self.repo.remotes]:
                 self.repo.create_remote('origin', self.repo_url)
 
     def _verify_repo(self) -> None:
@@ -99,7 +100,7 @@ class GitBackend:
 
     def commit_and_push(self, message: str | None = None) -> dict[str, bool | int]:
         """
-        Commit all changes and push to remote.
+        Commit all changes and push to remote (if configured).
 
         Args:
             message: Commit message. If None, a default message will be generated.
@@ -135,22 +136,23 @@ class GitBackend:
         self.repo.index.commit(message)
         result['committed'] = True
 
-        # Push to remote
-        try:
-            origin = self.repo.remotes.origin
-            # Get current branch name (usually 'master' or 'main')
-            if self.repo.heads:
-                current_branch = self.repo.active_branch.name
-                origin.push(f'{current_branch}:{current_branch}', set_upstream=True)
-                result['pushed'] = True
-        except GitCommandError as e:
-            raise RuntimeError(f"Failed to push to remote: {e}")
+        # Push to remote only if repo_url is configured and origin exists
+        if self.repo_url and 'origin' in [r.name for r in self.repo.remotes]:
+            try:
+                origin = self.repo.remotes.origin
+                # Get current branch name (usually 'master' or 'main')
+                if self.repo.heads:
+                    current_branch = self.repo.active_branch.name
+                    origin.push(f'{current_branch}:{current_branch}', set_upstream=True)
+                    result['pushed'] = True
+            except GitCommandError as e:
+                raise RuntimeError(f"Failed to push to remote: {e}")
 
         return result
 
     def pull(self) -> dict[str, bool | int]:
         """
-        Pull changes from remote.
+        Pull changes from remote (if configured).
 
         Returns:
             Dictionary with 'pulled' (bool) and 'files_changed' (int)
@@ -162,6 +164,10 @@ class GitBackend:
             raise RuntimeError("Repository not initialized")
 
         result = {'pulled': False, 'files_changed': 0}
+
+        # Skip if no remote is configured
+        if not self.repo_url or 'origin' not in [r.name for r in self.repo.remotes]:
+            return result
 
         # Get current HEAD before pull
         try:
@@ -209,16 +215,20 @@ class GitBackend:
 
     def needs_pull(self) -> bool:
         """
-        Check if local store is behind remote.
+        Check if local store is behind remote (if configured).
 
         Returns:
-            True if remote has changes that are not in local store
+            True if remote has changes that are not in local store, False if no remote
 
         Raises:
             RuntimeError: If repository is not initialized
         """
         if self.repo is None:
             raise RuntimeError("Repository not initialized")
+
+        # Skip if no remote is configured
+        if not self.repo_url or 'origin' not in [r.name for r in self.repo.remotes]:
+            return False
 
         try:
             origin = self.repo.remotes.origin

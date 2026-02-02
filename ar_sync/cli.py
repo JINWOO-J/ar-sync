@@ -84,6 +84,9 @@ def perform_auto_sync(config: LocalConfig) -> None:
 
     if config.backend != 'git':
         return
+    
+    if not config.repo_url:
+        return  # Skip auto-sync if no remote URL configured
 
     typer.echo("\nAuto-syncing with remote...")
 
@@ -365,7 +368,7 @@ def add(
         typer.echo("✓ Store metadata updated")
 
         # 7. Commit and push (only for git backend)
-        if config.backend == 'git':
+        if config.backend == 'git' and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -668,7 +671,7 @@ def init(
         typer.echo("✓ Store metadata updated")
 
         # 7. Commit and push (only for git backend)
-        if config.backend == 'git':
+        if config.backend == 'git' and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -1394,7 +1397,7 @@ def pull(
             )
 
         # 4. For git backend, check if we need to sync first
-        if config.backend == 'git':
+        if config.backend == 'git' and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -1598,7 +1601,7 @@ def push(
         typer.echo(f"✓ Files copied to {store_path / project_name}")
 
         # 7. For git backend, commit and push to remote
-        if config.backend == 'git':
+        if config.backend == 'git' and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 

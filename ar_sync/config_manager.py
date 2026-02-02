@@ -64,11 +64,11 @@ class ConfigManager:
             version=data['version'],
             backend=data['backend'],
             store_path=data['store_path'],
-            repo_url=data['repo_url'],
-            default_targets=data['default_targets'],
-            auto_sync=data['auto_sync'],
-            backup_originals=data['backup_originals'],
-            backup_dir=data['backup_dir']
+            repo_url=data.get('repo_url'),  # Optional field
+            default_targets=data.get('default_targets', []),
+            auto_sync=data.get('auto_sync', False),
+            backup_originals=data.get('backup_originals', True),
+            backup_dir=data.get('backup_dir', '')
         )
 
         # Validate before returning
@@ -101,12 +101,15 @@ class ConfigManager:
             'version': config.version,
             'backend': config.backend,
             'store_path': config.store_path,
-            'repo_url': config.repo_url,
             'default_targets': config.default_targets,
             'auto_sync': config.auto_sync,
             'backup_originals': config.backup_originals,
             'backup_dir': config.backup_dir
         }
+        
+        # Add repo_url only if it's set
+        if config.repo_url:
+            data['repo_url'] = config.repo_url
 
         # Atomic write: write to temp file then rename
         temp_path = self.CONFIG_PATH.with_suffix('.tmp')
@@ -149,9 +152,7 @@ class ConfigManager:
         if not config.store_path:
             raise ValueError("store_path field is required")
 
-        # Validate repo_url (only required for git backend)
-        if config.backend == 'git' and not config.repo_url:
-            raise ValueError("repo_url field is required for 'git' backend")
+        # repo_url is optional (can use git backend locally without remote)
 
         # Validate version
         if config.version != 1:
