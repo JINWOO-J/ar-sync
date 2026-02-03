@@ -32,16 +32,14 @@ def sample_metadata():
     """Create a sample StoreMetadata for testing."""
     return StoreMetadata(
         version=1,
-        created_at='2025-01-21T10:00:00Z',
+        created_at="2025-01-21T10:00:00Z",
         projects={
-            'test-project': ProjectInfo(
-                added_at='2025-01-21T10:00:00Z',
-                targets=['.cursor', '.kiro'],
-                machines=[
-                    MachineInfo(hostname='test-machine', linked_at='2025-01-21T10:00:00Z')
-                ]
+            "test-project": ProjectInfo(
+                added_at="2025-01-21T10:00:00Z",
+                targets=[".cursor", ".kiro"],
+                machines=[MachineInfo(hostname="test-machine", linked_at="2025-01-21T10:00:00Z")],
             )
-        }
+        },
     )
 
 
@@ -79,9 +77,11 @@ class TestStoreManager:
         after = datetime.now(timezone.utc)
 
         # Assert
-        assert metadata.created_at.endswith('Z')
+        assert metadata.created_at.endswith("Z")
         # Parse timestamp and verify it's between before and after
-        timestamp = datetime.fromisoformat(metadata.created_at.rstrip('Z')).replace(tzinfo=timezone.utc)
+        timestamp = datetime.fromisoformat(metadata.created_at.rstrip("Z")).replace(
+            tzinfo=timezone.utc
+        )
         assert before <= timestamp <= after
 
     def test_save_creates_valid_yaml(self, temp_store_dir, sample_metadata):
@@ -95,10 +95,10 @@ class TestStoreManager:
         with open(manager.metadata_path) as f:
             data = yaml.safe_load(f)
 
-        assert data['version'] == 1
-        assert data['created_at'] == '2025-01-21T10:00:00Z'
-        assert 'test-project' in data['projects']
-        assert data['projects']['test-project']['targets'] == ['.cursor', '.kiro']
+        assert data["version"] == 1
+        assert data["created_at"] == "2025-01-21T10:00:00Z"
+        assert "test-project" in data["projects"]
+        assert data["projects"]["test-project"]["targets"] == [".cursor", ".kiro"]
 
     def test_save_preserves_project_structure(self, temp_store_dir, sample_metadata):
         """Test that save() preserves complete project structure."""
@@ -110,12 +110,12 @@ class TestStoreManager:
             data = yaml.safe_load(f)
 
         # Assert
-        project = data['projects']['test-project']
-        assert project['added_at'] == '2025-01-21T10:00:00Z'
-        assert project['targets'] == ['.cursor', '.kiro']
-        assert len(project['machines']) == 1
-        assert project['machines'][0]['hostname'] == 'test-machine'
-        assert project['machines'][0]['linked_at'] == '2025-01-21T10:00:00Z'
+        project = data["projects"]["test-project"]
+        assert project["added_at"] == "2025-01-21T10:00:00Z"
+        assert project["targets"] == [".cursor", ".kiro"]
+        assert len(project["machines"]) == 1
+        assert project["machines"][0]["hostname"] == "test-machine"
+        assert project["machines"][0]["linked_at"] == "2025-01-21T10:00:00Z"
 
     def test_load_reads_metadata_file(self, temp_store_dir, sample_metadata):
         """Test that load() reads metadata from disk."""
@@ -131,7 +131,7 @@ class TestStoreManager:
         # Assert
         assert loaded_metadata.version == sample_metadata.version
         assert loaded_metadata.created_at == sample_metadata.created_at
-        assert 'test-project' in loaded_metadata.projects
+        assert "test-project" in loaded_metadata.projects
 
     def test_load_converts_to_dataclasses(self, temp_store_dir, sample_metadata):
         """Test that load() converts nested dicts to dataclasses."""
@@ -145,7 +145,7 @@ class TestStoreManager:
 
         # Assert
         assert isinstance(loaded_metadata, StoreMetadata)
-        project = loaded_metadata.projects['test-project']
+        project = loaded_metadata.projects["test-project"]
         assert isinstance(project, ProjectInfo)
         assert isinstance(project.machines[0], MachineInfo)
 
@@ -165,14 +165,14 @@ class TestStoreManager:
         manager.initialize()
 
         # Act
-        manager.add_project('new-project', ['.cursor'], 'test-machine')
+        manager.add_project("new-project", [".cursor"], "test-machine")
 
         # Assert
-        assert 'new-project' in manager.metadata.projects
-        project = manager.metadata.projects['new-project']
-        assert project.targets == ['.cursor']
+        assert "new-project" in manager.metadata.projects
+        project = manager.metadata.projects["new-project"]
+        assert project.targets == [".cursor"]
         assert len(project.machines) == 1
-        assert project.machines[0].hostname == 'test-machine'
+        assert project.machines[0].hostname == "test-machine"
 
     def test_add_project_updates_existing_project(self, temp_store_dir, sample_metadata):
         """Test that add_project() updates existing project."""
@@ -181,11 +181,11 @@ class TestStoreManager:
         manager.load()
 
         # Act - update with different targets
-        manager.add_project('test-project', ['.cursor', '.kiro', '.vscode'], 'test-machine')
+        manager.add_project("test-project", [".cursor", ".kiro", ".vscode"], "test-machine")
 
         # Assert
-        project = manager.metadata.projects['test-project']
-        assert project.targets == ['.cursor', '.kiro', '.vscode']
+        project = manager.metadata.projects["test-project"]
+        assert project.targets == [".cursor", ".kiro", ".vscode"]
         # Machine should still be there (not duplicated)
         assert len(project.machines) == 1
 
@@ -196,14 +196,14 @@ class TestStoreManager:
         manager.load()
 
         # Act - add from different machine
-        manager.add_project('test-project', ['.cursor', '.kiro'], 'new-machine')
+        manager.add_project("test-project", [".cursor", ".kiro"], "new-machine")
 
         # Assert
-        project = manager.metadata.projects['test-project']
+        project = manager.metadata.projects["test-project"]
         assert len(project.machines) == 2
         hostnames = [m.hostname for m in project.machines]
-        assert 'test-machine' in hostnames
-        assert 'new-machine' in hostnames
+        assert "test-machine" in hostnames
+        assert "new-machine" in hostnames
 
     def test_add_project_does_not_duplicate_machine(self, temp_store_dir, sample_metadata):
         """Test that add_project() doesn't duplicate existing machine."""
@@ -212,18 +212,18 @@ class TestStoreManager:
         manager.load()
 
         # Act - add from same machine again
-        manager.add_project('test-project', ['.cursor'], 'test-machine')
+        manager.add_project("test-project", [".cursor"], "test-machine")
 
         # Assert
-        project = manager.metadata.projects['test-project']
+        project = manager.metadata.projects["test-project"]
         assert len(project.machines) == 1
-        assert project.machines[0].hostname == 'test-machine'
+        assert project.machines[0].hostname == "test-machine"
 
     def test_add_project_persists_to_disk(self, temp_store_dir):
         """Test that add_project() saves changes to disk."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('new-project', ['.cursor'], 'test-machine')
+        manager.add_project("new-project", [".cursor"], "test-machine")
 
         # Create new manager and load
         manager2 = StoreManager(temp_store_dir)
@@ -232,7 +232,7 @@ class TestStoreManager:
         loaded_metadata = manager2.load()
 
         # Assert
-        assert 'new-project' in loaded_metadata.projects
+        assert "new-project" in loaded_metadata.projects
 
     def test_get_project_returns_existing_project(self, temp_store_dir, sample_metadata):
         """Test that get_project() returns existing project."""
@@ -240,11 +240,11 @@ class TestStoreManager:
         manager.save(sample_metadata)
 
         # Act
-        project = manager.get_project('test-project')
+        project = manager.get_project("test-project")
 
         # Assert
         assert project is not None
-        assert project.targets == ['.cursor', '.kiro']
+        assert project.targets == [".cursor", ".kiro"]
         assert len(project.machines) == 1
 
     def test_get_project_returns_none_for_nonexistent(self, temp_store_dir, sample_metadata):
@@ -253,7 +253,7 @@ class TestStoreManager:
         manager.save(sample_metadata)
 
         # Act
-        project = manager.get_project('nonexistent-project')
+        project = manager.get_project("nonexistent-project")
 
         # Assert
         assert project is None
@@ -268,7 +268,7 @@ class TestStoreManager:
         assert manager2.metadata is None
 
         # Act
-        project = manager2.get_project('test-project')
+        project = manager2.get_project("test-project")
 
         # Assert
         assert manager2.metadata is not None
@@ -309,7 +309,7 @@ class TestStoreManager:
         manager.save(sample_metadata)
 
         # Assert - temp file should not exist after successful write
-        temp_path = manager.metadata_path.with_suffix('.tmp')
+        temp_path = manager.metadata_path.with_suffix(".tmp")
         assert not temp_path.exists()
         assert manager.metadata_path.exists()
 
@@ -333,11 +333,48 @@ class TestStoreManager:
 
         # Act
         before = datetime.now(timezone.utc)
-        manager.add_project('new-project', ['.cursor'], 'test-machine')
+        manager.add_project("new-project", [".cursor"], "test-machine")
         after = datetime.now(timezone.utc)
 
         # Assert
-        project = manager.metadata.projects['new-project']
-        assert project.added_at.endswith('Z')
-        timestamp = datetime.fromisoformat(project.added_at.rstrip('Z')).replace(tzinfo=timezone.utc)
+        project = manager.metadata.projects["new-project"]
+        assert project.added_at.endswith("Z")
+        timestamp = datetime.fromisoformat(project.added_at.rstrip("Z")).replace(
+            tzinfo=timezone.utc
+        )
         assert before <= timestamp <= after
+
+    def test_remove_project_removes_existing_project(self, temp_store_dir, sample_metadata):
+        """Test that remove_project() removes an existing project."""
+        manager = StoreManager(temp_store_dir)
+        manager.save(sample_metadata)
+        manager.metadata = sample_metadata
+
+        # Act
+        manager.remove_project("test-project")
+
+        # Assert
+        assert "test-project" not in manager.metadata.projects
+
+    def test_remove_project_persists_to_disk(self, temp_store_dir, sample_metadata):
+        """Test that remove_project() saves changes to disk."""
+        manager = StoreManager(temp_store_dir)
+        manager.save(sample_metadata)
+        manager.metadata = sample_metadata
+
+        # Act
+        manager.remove_project("test-project")
+
+        # Assert - reload and verify
+        new_manager = StoreManager(temp_store_dir)
+        metadata = new_manager.load()
+        assert "test-project" not in metadata.projects
+
+    def test_remove_project_raises_error_for_nonexistent_project(self, temp_store_dir):
+        """Test that remove_project() raises error for non-existent project."""
+        manager = StoreManager(temp_store_dir)
+        manager.initialize()
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="not found"):
+            manager.remove_project("nonexistent")

@@ -22,7 +22,7 @@ def temp_config_dir(monkeypatch):
     config_path = temp_dir / ".config" / "ar-sync" / "config.yaml"
 
     # Patch CONFIG_PATH to use temp directory
-    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
+    monkeypatch.setattr(ConfigManager, "CONFIG_PATH", config_path)
 
     yield config_path
 
@@ -35,13 +35,13 @@ def sample_config():
     """Create a sample LocalConfig for testing."""
     return LocalConfig(
         version=1,
-        backend='git',
-        store_path='/tmp/ar-sync-store',
-        repo_url='git@github.com:user/repo.git',
-        default_targets=['.cursor', '.kiro'],
+        backend="git",
+        store_path="/tmp/ar-sync-store",
+        repo_url="git@github.com:user/repo.git",
+        default_targets=[".cursor", ".kiro"],
         auto_sync=False,
         backup_originals=True,
-        backup_dir='~/.config/ar-sync/backups/'
+        backup_dir="~/.config/ar-sync/backups/",
     )
 
 
@@ -83,11 +83,11 @@ class TestConfigManager:
             data = yaml.safe_load(f)
 
         # Assert
-        assert data['version'] == 1
-        assert data['backend'] == 'git'
-        assert data['store_path'] == '/tmp/ar-sync-store'
-        assert data['repo_url'] == 'git@github.com:user/repo.git'
-        assert data['default_targets'] == ['.cursor', '.kiro']
+        assert data["version"] == 1
+        assert data["backend"] == "git"
+        assert data["store_path"] == "/tmp/ar-sync-store"
+        assert data["repo_url"] == "git@github.com:user/repo.git"
+        assert data["default_targets"] == [".cursor", ".kiro"]
 
     def test_load_reads_config_file(self, temp_config_dir, sample_config):
         """Test that load() reads configuration from disk."""
@@ -121,7 +121,7 @@ class TestConfigManager:
     def test_validate_rejects_invalid_backend(self, sample_config):
         """Test that validate() rejects unsupported backend."""
         manager = ConfigManager()
-        sample_config.backend = 'dropbox'
+        sample_config.backend = "dropbox"
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
@@ -133,7 +133,7 @@ class TestConfigManager:
     def test_validate_rejects_empty_backend(self, sample_config):
         """Test that validate() rejects empty backend."""
         manager = ConfigManager()
-        sample_config.backend = ''
+        sample_config.backend = ""
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
@@ -145,7 +145,7 @@ class TestConfigManager:
     def test_validate_rejects_empty_store_path(self, sample_config):
         """Test that validate() rejects empty store_path."""
         manager = ConfigManager()
-        sample_config.store_path = ''
+        sample_config.store_path = ""
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
@@ -157,13 +157,13 @@ class TestConfigManager:
     def test_validate_accepts_empty_repo_url(self, sample_config):
         """Test that validate() accepts empty repo_url (for local-only mode)."""
         manager = ConfigManager()
-        sample_config.repo_url = ''
+        sample_config.repo_url = ""
 
         # Act - should not raise
         manager.validate(sample_config)
 
         # Assert - validation passed
-        assert sample_config.repo_url == ''
+        assert sample_config.repo_url == ""
 
     def test_validate_rejects_invalid_version(self, sample_config):
         """Test that validate() rejects unsupported version."""
@@ -180,7 +180,7 @@ class TestConfigManager:
     def test_save_validates_before_writing(self, temp_config_dir, sample_config):
         """Test that save() validates configuration before writing."""
         manager = ConfigManager()
-        sample_config.backend = 'invalid'
+        sample_config.backend = "invalid"
 
         # Act & Assert
         with pytest.raises(ValueError):
@@ -189,7 +189,9 @@ class TestConfigManager:
         # Config file should not be created
         assert not temp_config_dir.exists()
 
-    def test_atomic_write_no_partial_file_on_error(self, temp_config_dir, sample_config, monkeypatch):
+    def test_atomic_write_no_partial_file_on_error(
+        self, temp_config_dir, sample_config, monkeypatch
+    ):
         """Test that atomic write doesn't leave partial files on error."""
         manager = ConfigManager()
 
@@ -197,7 +199,7 @@ class TestConfigManager:
         def mock_dump(*args, **kwargs):
             raise RuntimeError("Simulated write error")
 
-        monkeypatch.setattr(yaml, 'safe_dump', mock_dump)
+        monkeypatch.setattr(yaml, "safe_dump", mock_dump)
 
         # Act & Assert
         with pytest.raises(RuntimeError):
@@ -205,24 +207,27 @@ class TestConfigManager:
 
         # Neither config file nor temp file should exist
         assert not temp_config_dir.exists()
-        temp_path = temp_config_dir.with_suffix('.tmp')
+        temp_path = temp_config_dir.with_suffix(".tmp")
         assert not temp_path.exists()
 
     def test_load_validates_after_reading(self, temp_config_dir):
         """Test that load() validates configuration after reading."""
         # Create invalid config file manually
         temp_config_dir.parent.mkdir(parents=True, exist_ok=True)
-        with open(temp_config_dir, 'w') as f:
-            yaml.safe_dump({
-                'version': 1,
-                'backend': 'invalid_backend',
-                'store_path': '/tmp/store',
-                'repo_url': 'git@github.com:user/repo.git',
-                'default_targets': ['.cursor'],
-                'auto_sync': False,
-                'backup_originals': True,
-                'backup_dir': '~/.config/ar-sync/backups/'
-            }, f)
+        with open(temp_config_dir, "w") as f:
+            yaml.safe_dump(
+                {
+                    "version": 1,
+                    "backend": "invalid_backend",
+                    "store_path": "/tmp/store",
+                    "repo_url": "git@github.com:user/repo.git",
+                    "default_targets": [".cursor"],
+                    "auto_sync": False,
+                    "backup_originals": True,
+                    "backup_dir": "~/.config/ar-sync/backups/",
+                },
+                f,
+            )
 
         manager = ConfigManager()
 

@@ -5,7 +5,6 @@ if the store has targets that are missing in the project directory,
 those targets are automatically pulled from the store.
 """
 
-
 import pytest
 from typer.testing import CliRunner
 
@@ -36,7 +35,7 @@ def temp_env(tmp_path, monkeypatch):
 
     # Create config using monkeypatch (auto-restores after test)
     config_path = config_dir / "config.yaml"
-    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
+    monkeypatch.setattr(ConfigManager, "CONFIG_PATH", config_path)
 
     config = LocalConfig(
         version=1,
@@ -46,7 +45,7 @@ def temp_env(tmp_path, monkeypatch):
         default_targets=[".kiro", ".cursor", "AGENTS.md"],
         auto_sync=False,
         backup_originals=True,
-        backup_dir=str(backup_dir)
+        backup_dir=str(backup_dir),
     )
 
     config_manager = ConfigManager()
@@ -57,7 +56,7 @@ def temp_env(tmp_path, monkeypatch):
         "store_dir": store_dir,
         "project_dir": project_dir,
         "backup_dir": backup_dir,
-        "config": config
+        "config": config,
     }
 
 
@@ -90,6 +89,7 @@ def test_sync_pulls_missing_kiro_from_store(runner, temp_env, monkeypatch):
 
     # Create store metadata
     from ar_sync.store_manager import StoreManager
+
     store_manager = StoreManager(store_dir)
     store_manager.initialize()
     store_manager.add_project(project_name, [".kiro", ".cursor"], "test-host")
@@ -108,12 +108,9 @@ def test_sync_pulls_missing_kiro_from_store(runner, temp_env, monkeypatch):
 
     # Mock project name to match store
     from ar_sync.project_manager import ProjectManager
+
     original_get_name = ProjectManager.get_current_project_name
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        lambda: project_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", lambda: project_name)
 
     # Run sync command (for local backend, this just syncs metadata)
     result = runner.invoke(app, ["sync"])
@@ -131,11 +128,7 @@ def test_sync_pulls_missing_kiro_from_store(runner, temp_env, monkeypatch):
     assert ".kiro" in result.stdout
 
     # Restore original function
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        original_get_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", original_get_name)
 
 
 def test_sync_pulls_multiple_missing_targets(runner, temp_env, monkeypatch):
@@ -159,6 +152,7 @@ def test_sync_pulls_multiple_missing_targets(runner, temp_env, monkeypatch):
 
     # Create store metadata
     from ar_sync.store_manager import StoreManager
+
     store_manager = StoreManager(store_dir)
     store_manager.initialize()
     store_manager.add_project(project_name, [".kiro", ".cursor", "AGENTS.md"], "test-host")
@@ -174,12 +168,9 @@ def test_sync_pulls_multiple_missing_targets(runner, temp_env, monkeypatch):
 
     # Mock project name
     from ar_sync.project_manager import ProjectManager
+
     original_get_name = ProjectManager.get_current_project_name
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        lambda: project_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", lambda: project_name)
 
     # Run sync command
     result = runner.invoke(app, ["sync"])
@@ -198,11 +189,7 @@ def test_sync_pulls_multiple_missing_targets(runner, temp_env, monkeypatch):
     assert "누락된 타겟" in result.stdout or "missing" in result.stdout.lower()
 
     # Restore
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        original_get_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", original_get_name)
 
 
 def test_sync_no_pull_when_all_targets_exist(runner, temp_env, monkeypatch):
@@ -221,6 +208,7 @@ def test_sync_no_pull_when_all_targets_exist(runner, temp_env, monkeypatch):
 
     # Create store metadata
     from ar_sync.store_manager import StoreManager
+
     store_manager = StoreManager(store_dir)
     store_manager.initialize()
     store_manager.add_project(project_name, [".kiro"], "test-host")
@@ -238,12 +226,9 @@ def test_sync_no_pull_when_all_targets_exist(runner, temp_env, monkeypatch):
 
     # Mock project name
     from ar_sync.project_manager import ProjectManager
+
     original_get_name = ProjectManager.get_current_project_name
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        lambda: project_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", lambda: project_name)
 
     # Run sync command
     result = runner.invoke(app, ["sync"])
@@ -256,11 +241,7 @@ def test_sync_no_pull_when_all_targets_exist(runner, temp_env, monkeypatch):
     assert "missing" not in result.stdout.lower() or "no missing" in result.stdout.lower()
 
     # Restore
-    monkeypatch.setattr(
-        ProjectManager,
-        "get_current_project_name",
-        original_get_name
-    )
+    monkeypatch.setattr(ProjectManager, "get_current_project_name", original_get_name)
 
 
 def test_sync_ignores_unregistered_project(runner, temp_env, monkeypatch):
@@ -270,6 +251,7 @@ def test_sync_ignores_unregistered_project(runner, temp_env, monkeypatch):
 
     # Setup: Create store metadata but no project
     from ar_sync.store_manager import StoreManager
+
     store_manager = StoreManager(store_dir)
     store_manager.initialize()
 

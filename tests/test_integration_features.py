@@ -20,14 +20,14 @@ class TestSSHVerification:
     def test_verify_remote_access_with_valid_repo(self):
         """Test SSH verification with a valid repository."""
         # This will actually try to connect, so we mock it
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
             result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert result is True
 
     def test_verify_remote_access_with_invalid_repo(self):
         """Test SSH verification with an invalid repository."""
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 128
             result = GitBackend.verify_remote_access("git@github.com:invalid/repo.git")
             assert result is False
@@ -40,17 +40,17 @@ class TestAutoSync:
         """Test that auto_sync does nothing when disabled."""
         config = LocalConfig(
             version=1,
-            backend='git',
-            store_path='/tmp/test',
-            repo_url='git@github.com:user/repo.git',
-            default_targets=['.cursor'],
+            backend="git",
+            store_path="/tmp/test",
+            repo_url="git@github.com:user/repo.git",
+            default_targets=[".cursor"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir='/tmp/backup'
+            backup_dir="/tmp/backup",
         )
 
         # Should return immediately without doing anything
-        with patch('ar_sync.cli.GitBackend') as mock_git:
+        with patch("ar_sync.cli.GitBackend") as mock_git:
             perform_auto_sync(config)
             mock_git.assert_not_called()
 
@@ -58,16 +58,16 @@ class TestAutoSync:
         """Test that auto_sync works when enabled with git backend."""
         config = LocalConfig(
             version=1,
-            backend='git',
-            store_path='/tmp/test',
-            repo_url='git@github.com:user/repo.git',
-            default_targets=['.cursor'],
+            backend="git",
+            store_path="/tmp/test",
+            repo_url="git@github.com:user/repo.git",
+            default_targets=[".cursor"],
             auto_sync=True,
             backup_originals=True,
-            backup_dir='/tmp/backup'
+            backup_dir="/tmp/backup",
         )
 
-        with patch('ar_sync.cli.GitBackend') as mock_git_class:
+        with patch("ar_sync.cli.GitBackend") as mock_git_class:
             mock_git = MagicMock()
             mock_git_class.return_value = mock_git
 
@@ -82,16 +82,16 @@ class TestAutoSync:
         """Test that auto_sync is skipped for local backend."""
         config = LocalConfig(
             version=1,
-            backend='local',
-            store_path='/tmp/test',
-            repo_url='',
-            default_targets=['.cursor'],
+            backend="local",
+            store_path="/tmp/test",
+            repo_url="",
+            default_targets=[".cursor"],
             auto_sync=True,
             backup_originals=True,
-            backup_dir='/tmp/backup'
+            backup_dir="/tmp/backup",
         )
 
-        with patch('ar_sync.cli.GitBackend') as mock_git:
+        with patch("ar_sync.cli.GitBackend") as mock_git:
             perform_auto_sync(config)
             mock_git.assert_not_called()
 
@@ -112,24 +112,24 @@ class TestSyncModeIntegration:
         manager.initialize()
 
         # Step 1: Add project with default (copy) mode
-        manager.add_project('test-project', ['.cursor'], 'machine1')
-        project = manager.get_project('test-project')
+        manager.add_project("test-project", [".cursor"], "machine1")
+        project = manager.get_project("test-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_COPY
 
         # Step 2: Update to link mode
-        result = manager.update_sync_mode('test-project', SYNC_MODE_LINK)
+        result = manager.update_sync_mode("test-project", SYNC_MODE_LINK)
         assert result is True
 
         # Step 3: Verify persistence
         manager2 = StoreManager(temp_store_dir)
-        project2 = manager2.get_project('test-project')
+        project2 = manager2.get_project("test-project")
         assert project2 is not None
         assert project2.sync_mode == SYNC_MODE_LINK
 
         # Step 4: Add another machine without changing sync_mode
-        manager2.add_project('test-project', ['.cursor', '.kiro'], 'machine2')
-        project3 = manager2.get_project('test-project')
+        manager2.add_project("test-project", [".cursor", ".kiro"], "machine2")
+        project3 = manager2.get_project("test-project")
         assert project3 is not None
         assert project3.sync_mode == SYNC_MODE_LINK  # Should be preserved
 
@@ -140,25 +140,23 @@ class TestSyncModeIntegration:
         # Create old-format metadata (without sync_mode)
         metadata_path = temp_store_dir / ".ar-sync.yaml"
         old_format = {
-            'version': 1,
-            'created_at': '2025-01-01T00:00:00Z',
-            'projects': {
-                'old-project': {
-                    'added_at': '2025-01-01T00:00:00Z',
-                    'targets': ['.cursor'],
-                    'machines': [
-                        {'hostname': 'machine1', 'linked_at': '2025-01-01T00:00:00Z'}
-                    ]
+            "version": 1,
+            "created_at": "2025-01-01T00:00:00Z",
+            "projects": {
+                "old-project": {
+                    "added_at": "2025-01-01T00:00:00Z",
+                    "targets": [".cursor"],
+                    "machines": [{"hostname": "machine1", "linked_at": "2025-01-01T00:00:00Z"}],
                 }
-            }
+            },
         }
 
-        with open(metadata_path, 'w') as f:
+        with open(metadata_path, "w") as f:
             yaml.safe_dump(old_format, f)
 
         # Load and verify default sync_mode
         manager = StoreManager(temp_store_dir)
-        project = manager.get_project('old-project')
+        project = manager.get_project("old-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_COPY  # Should default to copy
 
@@ -172,13 +170,13 @@ class TestFeatureInteraction:
         # git operations, not the sync_mode of individual projects
         config = LocalConfig(
             version=1,
-            backend='git',
-            store_path='/tmp/test',
-            repo_url='git@github.com:user/repo.git',
-            default_targets=['.cursor'],
+            backend="git",
+            store_path="/tmp/test",
+            repo_url="git@github.com:user/repo.git",
+            default_targets=[".cursor"],
             auto_sync=True,
             backup_originals=True,
-            backup_dir='/tmp/backup'
+            backup_dir="/tmp/backup",
         )
 
         # auto_sync should work regardless of project sync_mode
@@ -187,7 +185,7 @@ class TestFeatureInteraction:
     def test_ssh_verification_before_auto_sync(self):
         """Test that SSH verification can prevent auto_sync failures."""
         # Verify SSH access before attempting auto_sync
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
             can_access = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert can_access is True
@@ -195,12 +193,12 @@ class TestFeatureInteraction:
             # If verification passes, auto_sync should be safe to use
             config = LocalConfig(
                 version=1,
-                backend='git',
-                store_path='/tmp/test',
-                repo_url='git@github.com:user/repo.git',
-                default_targets=['.cursor'],
+                backend="git",
+                store_path="/tmp/test",
+                repo_url="git@github.com:user/repo.git",
+                default_targets=[".cursor"],
                 auto_sync=True,
                 backup_originals=True,
-                backup_dir='/tmp/backup'
+                backup_dir="/tmp/backup",
             )
             assert config.auto_sync is True

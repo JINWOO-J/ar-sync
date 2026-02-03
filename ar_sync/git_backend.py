@@ -9,8 +9,7 @@ try:
     from git import GitCommandError, Repo
 except ImportError:
     raise ImportError(
-        "GitPython is required for git backend. "
-        "Install it with: pip install GitPython"
+        "GitPython is required for git backend. Install it with: pip install GitPython"
     )
 
 
@@ -49,7 +48,7 @@ class GitBackend:
                 ["git", "ls-remote", "--exit-code", repo_url],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             return result.returncode == 0
         except subprocess.TimeoutExpired:
@@ -81,8 +80,8 @@ class GitBackend:
             self.repo = Repo.init(self.store_path)
 
             # Add remote only if repo_url is provided
-            if self.repo_url and 'origin' not in [remote.name for remote in self.repo.remotes]:
-                self.repo.create_remote('origin', self.repo_url)
+            if self.repo_url and "origin" not in [remote.name for remote in self.repo.remotes]:
+                self.repo.create_remote("origin", self.repo_url)
 
     def _verify_repo(self) -> None:
         """
@@ -114,7 +113,7 @@ class GitBackend:
         if self.repo is None:
             raise RuntimeError("Repository not initialized")
 
-        result = {'committed': False, 'files_changed': 0, 'pushed': False}
+        result = {"committed": False, "files_changed": 0, "pushed": False}
 
         # Check if there are changes
         if not self.repo.is_dirty(untracked_files=True):
@@ -122,10 +121,10 @@ class GitBackend:
 
         # Count changed files
         changed_files = len(self.repo.index.diff(None)) + len(self.repo.untracked_files)
-        result['files_changed'] = changed_files
+        result["files_changed"] = changed_files
 
         # Add all changes
-        self.repo.index.add('*')
+        self.repo.index.add("*")
 
         # Create commit
         if message is None:
@@ -134,17 +133,17 @@ class GitBackend:
             message = f"Auto-sync from {hostname} at {timestamp}"
 
         self.repo.index.commit(message)
-        result['committed'] = True
+        result["committed"] = True
 
         # Push to remote only if repo_url is configured and origin exists
-        if self.repo_url and 'origin' in [r.name for r in self.repo.remotes]:
+        if self.repo_url and "origin" in [r.name for r in self.repo.remotes]:
             try:
                 origin = self.repo.remotes.origin
                 # Get current branch name (usually 'master' or 'main')
                 if self.repo.heads:
                     current_branch = self.repo.active_branch.name
-                    origin.push(f'{current_branch}:{current_branch}', set_upstream=True)
-                    result['pushed'] = True
+                    origin.push(f"{current_branch}:{current_branch}", set_upstream=True)
+                    result["pushed"] = True
             except GitCommandError as e:
                 raise RuntimeError(f"Failed to push to remote: {e}")
 
@@ -153,6 +152,9 @@ class GitBackend:
     def pull(self) -> dict[str, bool | int]:
         """
         Pull changes from remote (if configured).
+
+        If there are uncommitted changes in the store, they will be automatically
+        committed before pulling to avoid conflicts.
 
         Returns:
             Dictionary with 'pulled' (bool) and 'files_changed' (int)
@@ -163,11 +165,21 @@ class GitBackend:
         if self.repo is None:
             raise RuntimeError("Repository not initialized")
 
-        result = {'pulled': False, 'files_changed': 0}
+        result = {"pulled": False, "files_changed": 0}
 
         # Skip if no remote is configured
-        if not self.repo_url or 'origin' not in [r.name for r in self.repo.remotes]:
+        if not self.repo_url or "origin" not in [r.name for r in self.repo.remotes]:
             return result
+
+        # Auto-commit any uncommitted changes before pulling
+        if self.repo.is_dirty(untracked_files=True):
+            hostname = socket.gethostname()
+            timestamp = datetime.now(timezone.utc).isoformat()
+            auto_commit_msg = f"Auto-commit before sync from {hostname} at {timestamp}"
+
+            # Add all changes including deletions
+            self.repo.git.add(A=True)
+            self.repo.index.commit(auto_commit_msg)
 
         # Get current HEAD before pull
         try:
@@ -181,26 +193,29 @@ class GitBackend:
             if self.repo.heads:
                 current_branch = self.repo.active_branch.name
                 pull_info = origin.pull(current_branch)
-                result['pulled'] = True
+                result["pulled"] = True
 
                 # Count changed files
                 if old_commit and pull_info:
                     new_commit = self.repo.head.commit
                     if old_commit != new_commit:
                         diff = old_commit.diff(new_commit)
-                        result['files_changed'] = len(list(diff))
+                        result["files_changed"] = len(list(diff))
             else:
                 # If no branches exist yet, try to pull from default branch
                 # This will fail gracefully if remote is empty
                 try:
-                    pull_info = origin.pull('main')
-                    result['pulled'] = True
+                    pull_info = origin.pull("main")
+                    result["pulled"] = True
                 except GitCommandError:
                     # Try master as fallback
-                    pull_info = origin.pull('master')
-                    result['pulled'] = True
+                    pull_info = origin.pull("master")
+                    result["pulled"] = True
         except GitCommandError as e:
-            if "CONFLICT" in str(e):
+            error_msg = str(e)
+
+            # Check for merge conflicts
+            if "CONFLICT" in error_msg:
                 raise RuntimeError(
                     "Git conflict detected. Please resolve manually:\n"
                     f"1. cd {self.store_path}\n"
@@ -209,6 +224,8 @@ class GitBackend:
                     "4. git commit\n"
                     "5. Run 'ars sync' again"
                 )
+
+            # Generic git error
             raise RuntimeError(f"Failed to pull from remote: {e}")
 
         return result
@@ -227,7 +244,7 @@ class GitBackend:
             raise RuntimeError("Repository not initialized")
 
         # Skip if no remote is configured
-        if not self.repo_url or 'origin' not in [r.name for r in self.repo.remotes]:
+        if not self.repo_url or "origin" not in [r.name for r in self.repo.remotes]:
             return False
 
         try:
@@ -245,19 +262,21 @@ class GitBackend:
 
             # Get remote commit
             try:
-                remote_commit = self.repo.refs[f'origin/{current_branch}'].commit
+                remote_commit = self.repo.refs[f"origin/{current_branch}"].commit
             except (IndexError, AttributeError):
                 return False  # Remote branch doesn't exist
 
             # Check if local is behind remote
-            return local_commit != remote_commit and \
-                   self.repo.is_ancestor(local_commit, remote_commit)
+            return local_commit != remote_commit and self.repo.is_ancestor(
+                local_commit, remote_commit
+            )
         except GitCommandError:
             # If fetch fails, assume we need to pull
             return True
 
-    def sync(self, message: str | None = None, pull_only: bool = False,
-             push_only: bool = False) -> None:
+    def sync(
+        self, message: str | None = None, pull_only: bool = False, push_only: bool = False
+    ) -> None:
         """
         Synchronize with remote (pull then push).
 

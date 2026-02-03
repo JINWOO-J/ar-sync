@@ -26,32 +26,42 @@ from ar_sync.store_manager import StoreManager
 @st.composite
 def valid_project_name_strategy(draw):
     """Generate valid project names."""
-    return draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'), min_codepoint=65, max_codepoint=122),
-        min_size=1,
-        max_size=30
-    ).filter(lambda x: x.strip() and not x.startswith('.')))
+    return draw(
+        st.text(
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=122
+            ),
+            min_size=1,
+            max_size=30,
+        ).filter(lambda x: x.strip() and not x.startswith("."))
+    )
 
 
 @st.composite
 def valid_targets_strategy(draw):
     """Generate valid target lists."""
-    return draw(st.lists(
-        st.sampled_from(['.cursor', '.kiro', '.vscode', '.idea']),
-        min_size=1,
-        max_size=4,
-        unique=True
-    ))
+    return draw(
+        st.lists(
+            st.sampled_from([".cursor", ".kiro", ".vscode", ".idea"]),
+            min_size=1,
+            max_size=4,
+            unique=True,
+        )
+    )
 
 
 @st.composite
 def valid_hostname_strategy(draw):
     """Generate valid hostnames."""
-    return draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'), min_codepoint=65, max_codepoint=122),
-        min_size=1,
-        max_size=20
-    ).filter(lambda x: x.strip()))
+    return draw(
+        st.text(
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=122
+            ),
+            min_size=1,
+            max_size=20,
+        ).filter(lambda x: x.strip())
+    )
 
 
 @st.composite
@@ -68,20 +78,16 @@ def valid_store_metadata_strategy(draw):
 
         for _ in range(num_machines):
             hostname = draw(valid_hostname_strategy())
-            linked_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            linked_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             machines.append(MachineInfo(hostname=hostname, linked_at=linked_at))
 
-        added_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-        projects[project_name] = ProjectInfo(
-            added_at=added_at,
-            targets=targets,
-            machines=machines
-        )
+        added_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        projects[project_name] = ProjectInfo(added_at=added_at, targets=targets, machines=machines)
 
     return StoreMetadata(
         version=1,
-        created_at=datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-        projects=projects
+        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        projects=projects,
     )
 
 
@@ -128,8 +134,10 @@ class TestStoreManagerProperties:
         assert metadata.version == 1, "Metadata version should be 1"
 
         # Assert - created_at timestamp is set and valid
-        assert metadata.created_at.endswith('Z'), "Timestamp should be in UTC (end with Z)"
-        timestamp = datetime.fromisoformat(metadata.created_at.rstrip('Z')).replace(tzinfo=timezone.utc)
+        assert metadata.created_at.endswith("Z"), "Timestamp should be in UTC (end with Z)"
+        timestamp = datetime.fromisoformat(metadata.created_at.rstrip("Z")).replace(
+            tzinfo=timezone.utc
+        )
         assert before <= timestamp <= after, "Timestamp should be within test execution time"
 
         # Assert - projects dictionary is empty
@@ -137,12 +145,12 @@ class TestStoreManagerProperties:
         assert len(metadata.projects) == 0, "Projects dictionary should be empty"
 
         # Assert - file contains valid YAML
-        with open(manager.metadata_path, encoding='utf-8') as f:
+        with open(manager.metadata_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
-        assert data['version'] == 1
-        assert 'created_at' in data
-        assert data['projects'] == {}
+        assert data["version"] == 1
+        assert "created_at" in data
+        assert data["projects"] == {}
 
     # Feature: cli-core-mvp, Property 9: 프로젝트 업데이트
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -150,7 +158,7 @@ class TestStoreManagerProperties:
         project_name=valid_project_name_strategy(),
         initial_targets=valid_targets_strategy(),
         updated_targets=valid_targets_strategy(),
-        hostname=valid_hostname_strategy()
+        hostname=valid_hostname_strategy(),
     )
     def test_property_9_project_update(
         self, temp_store_dir, project_name, initial_targets, updated_targets, hostname
@@ -189,8 +197,9 @@ class TestStoreManagerProperties:
         assert updated_project.targets == updated_targets, "Targets should be updated"
 
         # Assert - added_at timestamp is preserved (not changed)
-        assert updated_project.added_at == initial_project.added_at, \
+        assert updated_project.added_at == initial_project.added_at, (
             "Original added_at timestamp should be preserved"
+        )
 
         # Assert - machine is not duplicated
         hostnames = [m.hostname for m in updated_project.machines]
@@ -202,7 +211,7 @@ class TestStoreManagerProperties:
         project_name=valid_project_name_strategy(),
         targets=valid_targets_strategy(),
         hostname1=valid_hostname_strategy(),
-        hostname2=valid_hostname_strategy()
+        hostname2=valid_hostname_strategy(),
     )
     def test_property_9_project_update_adds_new_machine(
         self, temp_store_dir, project_name, targets, hostname1, hostname2
@@ -244,11 +253,9 @@ class TestStoreManagerProperties:
     @given(
         project_name=valid_project_name_strategy(),
         targets=valid_targets_strategy(),
-        hostname=valid_hostname_strategy()
+        hostname=valid_hostname_strategy(),
     )
-    def test_property_10_metadata_update(
-        self, temp_store_dir, project_name, targets, hostname
-    ):
+    def test_property_10_metadata_update(self, temp_store_dir, project_name, targets, hostname):
         """
         Property 10: Metadata 업데이트
 
@@ -277,8 +284,10 @@ class TestStoreManagerProperties:
         assert project_name in manager.metadata.projects.keys()
 
         # Assert - added_at timestamp is set and valid
-        assert project.added_at.endswith('Z'), "Timestamp should be in UTC"
-        timestamp = datetime.fromisoformat(project.added_at.rstrip('Z')).replace(tzinfo=timezone.utc)
+        assert project.added_at.endswith("Z"), "Timestamp should be in UTC"
+        timestamp = datetime.fromisoformat(project.added_at.rstrip("Z")).replace(
+            tzinfo=timezone.utc
+        )
         assert before <= timestamp <= after, "Timestamp should be within test execution time"
 
         # Assert - targets list is correct
@@ -289,7 +298,7 @@ class TestStoreManagerProperties:
         assert len(project.machines) > 0, "Should have at least one machine"
         machine = project.machines[0]
         assert machine.hostname == hostname, "Machine hostname should match"
-        assert machine.linked_at.endswith('Z'), "Machine linked_at should be in UTC"
+        assert machine.linked_at.endswith("Z"), "Machine linked_at should be in UTC"
 
         # Assert - changes are persisted to disk
         manager2 = StoreManager(temp_store_dir)
@@ -301,7 +310,7 @@ class TestStoreManagerProperties:
     @given(
         project_name=valid_project_name_strategy(),
         targets=valid_targets_strategy(),
-        hostname=valid_hostname_strategy()
+        hostname=valid_hostname_strategy(),
     )
     def test_property_10_metadata_update_persists_to_disk(
         self, temp_store_dir, project_name, targets, hostname
@@ -356,24 +365,24 @@ class TestStoreManagerProperties:
         assert manager.metadata_path.exists()
 
         # Assert - temp file does not exist (atomic rename completed)
-        temp_path = manager.metadata_path.with_suffix('.tmp')
+        temp_path = manager.metadata_path.with_suffix(".tmp")
         assert not temp_path.exists(), "Temporary file should not exist after successful write"
 
         # Assert - file is valid and complete
-        with open(manager.metadata_path, encoding='utf-8') as f:
+        with open(manager.metadata_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         assert data is not None
-        assert 'version' in data
-        assert 'created_at' in data
-        assert 'projects' in data
+        assert "version" in data
+        assert "created_at" in data
+        assert "projects" in data
 
     # Feature: cli-core-mvp, Property 10: Metadata 업데이트 (YAML structure)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
         project_name=valid_project_name_strategy(),
         targets=valid_targets_strategy(),
-        hostname=valid_hostname_strategy()
+        hostname=valid_hostname_strategy(),
     )
     def test_property_10_metadata_update_yaml_structure(
         self, temp_store_dir, project_name, targets, hostname
@@ -394,34 +403,34 @@ class TestStoreManagerProperties:
         manager.add_project(project_name, targets, hostname)
 
         # Assert - read YAML file directly
-        with open(manager.metadata_path, encoding='utf-8') as f:
+        with open(manager.metadata_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         # Assert - top-level structure
-        assert 'version' in data
-        assert 'created_at' in data
-        assert 'projects' in data
+        assert "version" in data
+        assert "created_at" in data
+        assert "projects" in data
 
         # Assert - project structure
-        assert project_name in data['projects']
-        project_data = data['projects'][project_name]
+        assert project_name in data["projects"]
+        project_data = data["projects"][project_name]
 
-        assert 'added_at' in project_data
-        assert 'targets' in project_data
-        assert 'machines' in project_data
+        assert "added_at" in project_data
+        assert "targets" in project_data
+        assert "machines" in project_data
 
         # Assert - project data values
-        assert project_data['targets'] == targets
-        assert len(project_data['machines']) == 1
-        assert project_data['machines'][0]['hostname'] == hostname
-        assert 'linked_at' in project_data['machines'][0]
+        assert project_data["targets"] == targets
+        assert len(project_data["machines"]) == 1
+        assert project_data["machines"][0]["hostname"] == hostname
+        assert "linked_at" in project_data["machines"][0]
 
     # Feature: cli-core-mvp, Property 9: 프로젝트 업데이트 (idempotent)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
         project_name=valid_project_name_strategy(),
         targets=valid_targets_strategy(),
-        hostname=valid_hostname_strategy()
+        hostname=valid_hostname_strategy(),
     )
     def test_property_9_project_update_idempotent(
         self, temp_store_dir, project_name, targets, hostname

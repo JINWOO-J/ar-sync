@@ -21,13 +21,13 @@ class TestTemplateCopierInit:
     def test_init_with_default_output_dir(self, tmp_path, monkeypatch):
         """Test initialization with default output directory.
 
-        Requirement 3.2: 기본 대상 디렉토리로 `.claude/` 사용
+        Requirement 3.2: 기본 대상 디렉토리로 `.prompts/` 사용
         """
         monkeypatch.chdir(tmp_path)
 
         copier = TemplateCopier()
 
-        assert copier.output_dir == tmp_path / ".claude"
+        assert copier.output_dir == tmp_path / ".prompts"
 
     def test_init_with_custom_output_dir(self, tmp_path):
         """Test initialization with custom output directory."""
@@ -40,9 +40,9 @@ class TestTemplateCopierInit:
     def test_default_output_dir_constant(self):
         """Test DEFAULT_OUTPUT_DIR constant value.
 
-        Requirement 3.2: 기본 대상 디렉토리로 `.claude/` 사용
+        Requirement 3.2: 기본 대상 디렉토리로 `.prompts/` 사용
         """
-        assert TemplateCopier.DEFAULT_OUTPUT_DIR == ".claude"
+        assert TemplateCopier.DEFAULT_OUTPUT_DIR == ".prompts"
 
 
 class TestEnsureOutputDir:
@@ -606,7 +606,7 @@ class TestResolveConflicts:
         assert overwrite == []
         assert skip == []
 
-    @patch('ar_sync.template_copier.Confirm.ask')
+    @patch("ar_sync.template_copier.Confirm.ask")
     def test_overwrite_all(self, mock_confirm, tmp_path):
         """Test overwrite all option."""
         mock_confirm.return_value = True  # Yes to "overwrite all"
@@ -641,7 +641,7 @@ class TestResolveConflicts:
         assert len(overwrite) == 2
         assert len(skip) == 0
 
-    @patch('ar_sync.template_copier.Confirm.ask')
+    @patch("ar_sync.template_copier.Confirm.ask")
     def test_skip_all(self, mock_confirm, tmp_path):
         """Test skip all option."""
         mock_confirm.side_effect = [False, True]  # No to overwrite all, Yes to skip all
@@ -676,7 +676,7 @@ class TestResolveConflicts:
         assert len(overwrite) == 0
         assert len(skip) == 2
 
-    @patch('ar_sync.template_copier.Confirm.ask')
+    @patch("ar_sync.template_copier.Confirm.ask")
     def test_single_conflict_direct_prompt(self, mock_confirm, tmp_path):
         """Test single conflict goes directly to individual prompt."""
         mock_confirm.return_value = True  # Yes to overwrite
@@ -703,6 +703,104 @@ class TestResolveConflicts:
         # Single conflict should be handled directly
         assert len(overwrite) == 1
         assert len(skip) == 0
+
+
+class TestExpandFullSet:
+    """Test suite for expand_full_set method."""
+
+    def test_expand_full_set_includes_all_agents(self, tmp_path):
+        """Test that expand_full_set returns all individual agents.
+
+        When "Full Agent Set" template is selected, it should expand to
+        include all individual agent templates from agents/ directory
+        (excluding full-set directory itself).
+        """
+        from ar_sync.template_manager import TemplateManager
+
+        manager = TemplateManager()
+        all_agents = manager.get_templates_by_category("agents")
+
+        # Filter out full-set template
+        individual_agents = [t for t in all_agents if t.name != "Full Agent Set"]
+
+        copier = TemplateCopier(output_dir=tmp_path / "output")
+
+        # Create a full-set template
+        full_set_template = TemplateMetadata(
+            name="Full Agent Set",
+            description="Complete agent suite",
+            category="agents",
+            path=tmp_path / "templates" / "agents" / "full-set" / "full-set.md",
+            is_directory=False,
+        )
+
+        expanded = copier.expand_full_set(full_set_template, manager)
+
+        # Should return all individual agents
+        assert len(expanded) == len(individual_agents)
+
+        expanded_names = {t.name for t in expanded}
+        individual_names = {t.name for t in individual_agents}
+
+        assert expanded_names == individual_names
+
+    def test_expand_full_set_returns_empty_if_no_agents(self, tmp_path):
+        """Test expand_full_set returns empty list if no agents found."""
+        from ar_sync.template_manager import TemplateManager
+
+        manager = TemplateManager()
+
+        copier = TemplateCopier(output_dir=tmp_path / "output")
+
+        # Create a full-set template with invalid path
+        full_set_template = TemplateMetadata(
+            name="Full Agent Set",
+            description="Complete agent suite",
+            category="agents",
+            path=tmp_path / "nonexistent" / "full-set.md",
+            is_directory=False,
+        )
+
+        expanded = copier.expand_full_set(full_set_template, manager)
+
+        # Should return all available agents (not empty, but all agents)
+        assert len(expanded) > 0
+
+    def test_copy_templates_with_full_set_expansion(self, tmp_path):
+        """Test that copy_templates expands full-set selection.
+
+        When full-set template is in the list, it should be expanded
+        to include all individual agents before copying.
+        """
+        from ar_sync.template_manager import TemplateManager
+
+        manager = TemplateManager()
+        all_agents = manager.get_templates_by_category("agents")
+
+        # Get full-set template
+        full_set = next((t for t in all_agents if t.name == "Full Agent Set"), None)
+
+        if not full_set:
+            pytest.skip("Full Agent Set template not available")
+
+        output_dir = tmp_path / "output"
+        copier = TemplateCopier(output_dir=output_dir)
+
+        # Copy only full-set template
+        result = copier.copy_templates([full_set], force=True)
+
+        # Should have copied all individual agents
+        individual_agents = [t for t in all_agents if t.name != "Full Agent Set"]
+
+        assert len(result.success) == len(individual_agents)
+
+        # Verify all agents are in output directory
+        agents_output_dir = output_dir / "agents"
+        assert agents_output_dir.exists()
+
+        for agent in individual_agents:
+            agent_file = agents_output_dir / agent.path.name
+            assert agent_file.exists(), f"Agent {agent.name} not copied"
 
 
 class TestIntegrationWithRealTemplates:

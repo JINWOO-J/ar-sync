@@ -57,32 +57,26 @@ class StoreManager:
             yaml.YAMLError: If YAML parsing fails
         """
         if not self.metadata_path.exists():
-            raise FileNotFoundError(
-                f"Store metadata not found at {self.metadata_path}"
-            )
+            raise FileNotFoundError(f"Store metadata not found at {self.metadata_path}")
 
-        with open(self.metadata_path, encoding='utf-8') as f:
+        with open(self.metadata_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         # Convert nested dicts to dataclasses
         projects = {}
-        for name, proj_data in data.get('projects', {}).items():
-            machines = [
-                MachineInfo(**m) for m in proj_data.get('machines', [])
-            ]
+        for name, proj_data in data.get("projects", {}).items():
+            machines = [MachineInfo(**m) for m in proj_data.get("machines", [])]
             # Backward compatibility: default to "copy" if sync_mode not present
-            sync_mode = proj_data.get('sync_mode', SYNC_MODE_COPY)
+            sync_mode = proj_data.get("sync_mode", SYNC_MODE_COPY)
             projects[name] = ProjectInfo(
-                added_at=proj_data['added_at'],
-                targets=proj_data['targets'],
+                added_at=proj_data["added_at"],
+                targets=proj_data["targets"],
                 machines=machines,
-                sync_mode=sync_mode
+                sync_mode=sync_mode,
             )
 
         self.metadata = StoreMetadata(
-            version=data['version'],
-            created_at=data['created_at'],
-            projects=projects
+            version=data["version"], created_at=data["created_at"], projects=projects
         )
         return self.metadata
 
@@ -101,26 +95,26 @@ class StoreManager:
         """
         # Convert dataclasses to dicts
         from typing import Any
+
         data: dict[str, Any] = {
-            'version': metadata.version,
-            'created_at': metadata.created_at,
-            'projects': {}
+            "version": metadata.version,
+            "created_at": metadata.created_at,
+            "projects": {},
         }
 
         for name, proj in metadata.projects.items():
-            data['projects'][name] = {
-                'added_at': proj.added_at,
-                'targets': proj.targets,
-                'machines': [
-                    {'hostname': m.hostname, 'linked_at': m.linked_at}
-                    for m in proj.machines
+            data["projects"][name] = {
+                "added_at": proj.added_at,
+                "targets": proj.targets,
+                "machines": [
+                    {"hostname": m.hostname, "linked_at": m.linked_at} for m in proj.machines
                 ],
-                'sync_mode': proj.sync_mode
+                "sync_mode": proj.sync_mode,
             }
 
         # Atomic write: write to temp file then rename
-        temp_path = self.metadata_path.with_suffix('.tmp')
-        with open(temp_path, 'w', encoding='utf-8') as f:
+        temp_path = self.metadata_path.with_suffix(".tmp")
+        with open(temp_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
         temp_path.replace(self.metadata_path)
@@ -140,13 +134,15 @@ class StoreManager:
         """
         metadata = StoreMetadata(
             version=1,
-            created_at=datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-            projects={}
+            created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            projects={},
         )
         self.save(metadata)
         return metadata
 
-    def add_project(self, name: str, targets: list[str], hostname: str, sync_mode: str | None = None) -> None:
+    def add_project(
+        self, name: str, targets: list[str], hostname: str, sync_mode: str | None = None
+    ) -> None:
         """Add or update project in metadata.
 
         If the project already exists, updates its targets and adds the machine
@@ -167,7 +163,7 @@ class StoreManager:
         # After load(), metadata is guaranteed to be non-None
         assert self.metadata is not None
 
-        now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         if name in self.metadata.projects:
             # Update existing project
@@ -185,7 +181,7 @@ class StoreManager:
                 added_at=now,
                 targets=targets,
                 machines=[MachineInfo(hostname=hostname, linked_at=now)],
-                sync_mode=sync_mode if sync_mode is not None else SYNC_MODE_COPY
+                sync_mode=sync_mode if sync_mode is not None else SYNC_MODE_COPY,
             )
 
         self.save(self.metadata)
@@ -250,7 +246,7 @@ class StoreManager:
 
         targets = []
         for item in project_dir.iterdir():
-            if item.name.startswith('.') or item.is_file():
+            if item.name.startswith(".") or item.is_file():
                 targets.append(item.name)
 
         return sorted(targets)
@@ -284,3 +280,24 @@ class StoreManager:
             return True
 
         return False
+
+    def remove_project(self, name: str) -> None:
+        """Remove project from metadata.
+
+        Args:
+            name: Project name to remove
+
+        Raises:
+            ValueError: If project not found in metadata
+            FileNotFoundError: If metadata not loaded and file doesn't exist
+        """
+        if self.metadata is None:
+            self.load()
+
+        assert self.metadata is not None
+
+        if name not in self.metadata.projects:
+            raise ValueError(f"Project '{name}' not found in store metadata")
+
+        del self.metadata.projects[name]
+        self.save(self.metadata)

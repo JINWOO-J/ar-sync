@@ -26,46 +26,60 @@ from ar_sync.models import LocalConfig
 @st.composite
 def valid_backend_strategy(draw):
     """Generate valid backend values ('git' or 'local')."""
-    return draw(st.sampled_from(['git', 'local']))
+    return draw(st.sampled_from(["git", "local"]))
 
 
 @st.composite
 def valid_store_path_strategy(draw):
     """Generate valid store path strings."""
     # Generate simple alphanumeric paths to avoid filesystem issues
-    path_component = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'), min_codepoint=65, max_codepoint=122),
-        min_size=1,
-        max_size=20
-    ))
+    path_component = draw(
+        st.text(
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=122
+            ),
+            min_size=1,
+            max_size=20,
+        )
+    )
     return f"/tmp/ar-sync-test-{path_component}"
 
 
 @st.composite
 def valid_repo_url_strategy(draw):
     """Generate valid Git repository URLs."""
-    username = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'), min_codepoint=65, max_codepoint=122),
-        min_size=1,
-        max_size=20
-    ))
-    repo = draw(st.text(
-        alphabet=st.characters(whitelist_categories=('Lu', 'Ll', 'Nd'), min_codepoint=65, max_codepoint=122),
-        min_size=1,
-        max_size=20
-    ))
+    username = draw(
+        st.text(
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=122
+            ),
+            min_size=1,
+            max_size=20,
+        )
+    )
+    repo = draw(
+        st.text(
+            alphabet=st.characters(
+                whitelist_categories=("Lu", "Ll", "Nd"), min_codepoint=65, max_codepoint=122
+            ),
+            min_size=1,
+            max_size=20,
+        )
+    )
     return f"git@github.com:{username}/{repo}.git"
 
 
 @st.composite
 def valid_targets_strategy(draw):
     """Generate valid target lists."""
-    return draw(st.lists(
-        st.sampled_from(['.cursor', '.kiro', '.vscode', '.idea']),
-        min_size=1,
-        max_size=4,
-        unique=True
-    ))
+    return draw(
+        st.lists(
+            st.sampled_from([".cursor", ".kiro", ".vscode", ".idea"]),
+            min_size=1,
+            max_size=4,
+            unique=True,
+        )
+    )
 
 
 @st.composite
@@ -79,7 +93,7 @@ def valid_local_config_strategy(draw):
         default_targets=draw(valid_targets_strategy()),
         auto_sync=draw(st.booleans()),
         backup_originals=draw(st.booleans()),
-        backup_dir=draw(st.just('~/.config/ar-sync/backups/'))
+        backup_dir=draw(st.just("~/.config/ar-sync/backups/")),
     )
 
 
@@ -90,7 +104,7 @@ def temp_config_dir(monkeypatch):
     config_path = temp_dir / ".config" / "ar-sync" / "config.yaml"
 
     # Patch CONFIG_PATH to use temp directory
-    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
+    monkeypatch.setattr(ConfigManager, "CONFIG_PATH", config_path)
 
     yield config_path
 
@@ -104,9 +118,7 @@ class TestConfigManagerProperties:
     # Feature: cli-core-mvp, Property 1: Config 파일 생성 및 필수 필드
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(config=valid_local_config_strategy())
-    def test_property_1_config_file_creation_and_required_fields(
-        self, temp_config_dir, config
-    ):
+    def test_property_1_config_file_creation_and_required_fields(self, temp_config_dir, config):
         """
         Property 1: Config 파일 생성 및 필수 필드
 
@@ -127,18 +139,18 @@ class TestConfigManagerProperties:
         assert temp_config_dir.is_file(), "Config path should be a file"
 
         # Assert - file contains valid YAML
-        with open(temp_config_dir, encoding='utf-8') as f:
+        with open(temp_config_dir, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         # Assert - required fields exist
-        assert 'backend' in data, "Config must contain 'backend' field"
-        assert 'store_path' in data, "Config must contain 'store_path' field"
-        assert 'repo_url' in data, "Config must contain 'repo_url' field"
+        assert "backend" in data, "Config must contain 'backend' field"
+        assert "store_path" in data, "Config must contain 'store_path' field"
+        assert "repo_url" in data, "Config must contain 'repo_url' field"
 
         # Assert - field values match
-        assert data['backend'] == config.backend
-        assert data['store_path'] == config.store_path
-        assert data['repo_url'] == config.repo_url
+        assert data["backend"] == config.backend
+        assert data["store_path"] == config.store_path
+        assert data["repo_url"] == config.repo_url
 
     # Feature: cli-core-mvp, Property 26: YAML 검증
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -159,21 +171,21 @@ class TestConfigManagerProperties:
         manager.save(config)
 
         # Assert - file contains valid YAML that can be parsed
-        with open(temp_config_dir, encoding='utf-8') as f:
+        with open(temp_config_dir, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         # Assert - data is a dictionary (valid YAML structure)
         assert isinstance(data, dict), "Config file should contain valid YAML dictionary"
 
         # Assert - all expected fields are present and have correct types
-        assert isinstance(data['version'], int)
-        assert isinstance(data['backend'], str)
-        assert isinstance(data['store_path'], str)
-        assert isinstance(data['repo_url'], str)
-        assert isinstance(data['default_targets'], list)
-        assert isinstance(data['auto_sync'], bool)
-        assert isinstance(data['backup_originals'], bool)
-        assert isinstance(data['backup_dir'], str)
+        assert isinstance(data["version"], int)
+        assert isinstance(data["backend"], str)
+        assert isinstance(data["store_path"], str)
+        assert isinstance(data["repo_url"], str)
+        assert isinstance(data["default_targets"], list)
+        assert isinstance(data["auto_sync"], bool)
+        assert isinstance(data["backup_originals"], bool)
+        assert isinstance(data["backup_dir"], str)
 
     # Feature: cli-core-mvp, Property 27: 필수 필드 검증
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -207,9 +219,9 @@ class TestConfigManagerProperties:
     # Feature: cli-core-mvp, Property 27: 필수 필드 검증 (invalid backend)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
-        backend=st.text(min_size=1, max_size=20).filter(lambda x: x not in ['git', 'local']),
+        backend=st.text(min_size=1, max_size=20).filter(lambda x: x not in ["git", "local"]),
         store_path=valid_store_path_strategy(),
-        repo_url=valid_repo_url_strategy()
+        repo_url=valid_repo_url_strategy(),
     )
     def test_property_27_invalid_backend_rejected(
         self, temp_config_dir, backend, store_path, repo_url
@@ -229,26 +241,24 @@ class TestConfigManagerProperties:
             backend=backend,
             store_path=store_path,
             repo_url=repo_url,
-            default_targets=['.cursor', '.kiro'],
+            default_targets=[".cursor", ".kiro"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir='~/.config/ar-sync/backups/'
+            backup_dir="~/.config/ar-sync/backups/",
         )
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
             manager.validate(invalid_config)
 
-        assert 'backend' in str(exc_info.value).lower()
+        assert "backend" in str(exc_info.value).lower()
 
     # Feature: cli-core-mvp, Property 27: 필수 필드 검증 (empty fields)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
-        field_to_empty=st.sampled_from(['backend', 'store_path'])  # repo_url is now optional
+        field_to_empty=st.sampled_from(["backend", "store_path"])  # repo_url is now optional
     )
-    def test_property_27_empty_required_fields_rejected(
-        self, temp_config_dir, field_to_empty
-    ):
+    def test_property_27_empty_required_fields_rejected(self, temp_config_dir, field_to_empty):
         """
         Property 27: 필수 필드 검증 (empty fields)
 
@@ -262,24 +272,24 @@ class TestConfigManagerProperties:
         manager = ConfigManager()
         config = LocalConfig(
             version=1,
-            backend='git',
-            store_path='/tmp/store',
-            repo_url='git@github.com:user/repo.git',
-            default_targets=['.cursor', '.kiro'],
+            backend="git",
+            store_path="/tmp/store",
+            repo_url="git@github.com:user/repo.git",
+            default_targets=[".cursor", ".kiro"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir='~/.config/ar-sync/backups/'
+            backup_dir="~/.config/ar-sync/backups/",
         )
 
         # Set the specified field to empty
-        setattr(config, field_to_empty, '')
+        setattr(config, field_to_empty, "")
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
             manager.validate(config)
 
         assert field_to_empty in str(exc_info.value).lower()
-        assert 'required' in str(exc_info.value).lower()
+        assert "required" in str(exc_info.value).lower()
 
     # Feature: cli-core-mvp, Property 31: Atomic Write
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -308,17 +318,17 @@ class TestConfigManagerProperties:
         assert temp_config_dir.exists()
 
         # Assert - temp file does not exist (atomic rename completed)
-        temp_path = temp_config_dir.with_suffix('.tmp')
+        temp_path = temp_config_dir.with_suffix(".tmp")
         assert not temp_path.exists(), "Temporary file should not exist after successful write"
 
         # Assert - file is valid and complete
-        with open(temp_config_dir, encoding='utf-8') as f:
+        with open(temp_config_dir, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         assert data is not None
-        assert 'backend' in data
-        assert 'store_path' in data
-        assert 'repo_url' in data
+        assert "backend" in data
+        assert "store_path" in data
+        assert "repo_url" in data
 
     # Feature: cli-core-mvp, Property 31: Atomic Write (error handling)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -347,7 +357,7 @@ class TestConfigManagerProperties:
                 raise RuntimeError("Simulated write error")
             return original_dump(*args, **kwargs)
 
-        monkeypatch.setattr(yaml, 'safe_dump', mock_dump)
+        monkeypatch.setattr(yaml, "safe_dump", mock_dump)
 
         # Act & Assert
         with pytest.raises(RuntimeError):
@@ -355,11 +365,13 @@ class TestConfigManagerProperties:
 
         # Assert - neither config file nor temp file should exist
         assert not temp_config_dir.exists(), "Config file should not exist after failed write"
-        temp_path = temp_config_dir.with_suffix('.tmp')
+        temp_path = temp_config_dir.with_suffix(".tmp")
         assert not temp_path.exists(), "Temp file should be cleaned up after failed write"
 
     # Feature: cli-core-mvp, Property 1: Config 파일 생성 및 필수 필드 (round-trip)
-    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
+    @settings(
+        max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None
+    )
     @given(config=valid_local_config_strategy())
     def test_property_1_round_trip_preserves_data(self, temp_config_dir, config):
         """

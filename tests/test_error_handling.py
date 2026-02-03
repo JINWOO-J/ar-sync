@@ -10,10 +10,7 @@ class TestARSyncError:
 
     def test_error_with_message_only(self) -> None:
         """Test ARSyncError with message only."""
-        error = ARSyncError(
-            "Test error message",
-            ErrorCategory.USER_INPUT
-        )
+        error = ARSyncError("Test error message", ErrorCategory.USER_INPUT)
 
         assert error.message == "Test error message"
         assert error.category == ErrorCategory.USER_INPUT
@@ -22,24 +19,14 @@ class TestARSyncError:
 
     def test_error_with_recovery_steps(self) -> None:
         """Test ARSyncError with recovery steps."""
-        recovery_steps = [
-            "Step 1: Do this",
-            "Step 2: Do that"
-        ]
-        error = ARSyncError(
-            "Test error",
-            ErrorCategory.FILE_SYSTEM,
-            recovery_steps=recovery_steps
-        )
+        recovery_steps = ["Step 1: Do this", "Step 2: Do that"]
+        error = ARSyncError("Test error", ErrorCategory.FILE_SYSTEM, recovery_steps=recovery_steps)
 
         assert error.recovery_steps == recovery_steps
 
     def test_format_error_without_recovery_steps(self) -> None:
         """Test format_error without recovery steps."""
-        error = ARSyncError(
-            "Simple error",
-            ErrorCategory.CONFIG
-        )
+        error = ARSyncError("Simple error", ErrorCategory.CONFIG)
 
         formatted = error.format_error()
         assert formatted == "Error: Simple error"
@@ -49,11 +36,7 @@ class TestARSyncError:
         error = ARSyncError(
             "Complex error",
             ErrorCategory.GIT,
-            recovery_steps=[
-                "First step",
-                "Second step",
-                "Third step"
-            ]
+            recovery_steps=["First step", "Second step", "Third step"],
         )
 
         formatted = error.format_error()

@@ -32,7 +32,6 @@ from rich.console import Console
 from ar_sync.errors import ErrorCategory, SyncError
 from ar_sync.sync.conflict_resolver import ConflictResolver
 from ar_sync.sync.diff_engine import DiffEngine
-from ar_sync.sync.merge_engine import MergeEngine
 from ar_sync.sync.models import (
     ChangeType,
     FileChange,
@@ -90,7 +89,6 @@ class BidirectionalSync:
 
         # Initialize component engines
         self.diff_engine = DiffEngine()
-        self.merge_engine = MergeEngine()
         self.conflict_resolver = ConflictResolver(console=self.console)
 
     def sync(self, options: SyncOptions) -> SyncResult:
@@ -142,16 +140,12 @@ class BidirectionalSync:
         resolved = self._resolve_conflicts(changes, options)
 
         # Count resolved conflicts (excluding skipped)
-        resolved_count = sum(
-            1 for r in resolved
-            if r.resolution != Resolution.SKIP
-        )
+        resolved_count = sum(1 for r in resolved if r.resolution != Resolution.SKIP)
         result.conflicts_resolved = resolved_count
 
         # Track skipped files
         result.skipped_files = [
-            r.file_change.path for r in resolved
-            if r.resolution == Resolution.SKIP
+            r.file_change.path for r in resolved if r.resolution == Resolution.SKIP
         ]
 
         # Phase 4: Apply changes (unless dry-run)
@@ -209,17 +203,13 @@ class BidirectionalSync:
             # Perform actual pull (Requirement 1.1)
             pull_result = self.git_backend.pull()
 
-            files_changed = pull_result.get('files_changed', 0)
+            files_changed = pull_result.get("files_changed", 0)
 
             # Display result (Requirement 1.2, 1.3)
             if files_changed > 0:
-                self.console.print(
-                    f"[cyan]↓ Pulled {files_changed} file(s) from remote[/cyan]"
-                )
+                self.console.print(f"[cyan]↓ Pulled {files_changed} file(s) from remote[/cyan]")
             else:
-                self.console.print(
-                    "[dim]Remote is already up to date[/dim]"
-                )
+                self.console.print("[dim]Remote is already up to date[/dim]")
 
             return files_changed
 
@@ -234,10 +224,18 @@ class BidirectionalSync:
                 ) from e
 
             # Detect network error (Requirement 1.4)
-            if any(keyword in error_msg for keyword in [
-                "network", "connection", "timeout", "refused",
-                "could not resolve", "unable to access", "fatal:"
-            ]):
+            if any(
+                keyword in error_msg
+                for keyword in [
+                    "network",
+                    "connection",
+                    "timeout",
+                    "refused",
+                    "could not resolve",
+                    "unable to access",
+                    "fatal:",
+                ]
+            ):
                 raise SyncError(
                     message=f"Pull failed due to network error: {e}",
                     category=ErrorCategory.GIT,
@@ -300,7 +298,6 @@ class BidirectionalSync:
                 # Interactive resolution
                 resolution = self.conflict_resolver.resolve_interactive(
                     change=change,
-                    merge_engine=self.merge_engine,
                 )
             else:
                 # Automatic resolution (LOCAL or REMOTE)
@@ -373,11 +370,6 @@ class BidirectionalSync:
                 # Copy store file to project
                 self._copy_to_project(change)
 
-            elif resolution == Resolution.MERGE:
-                # Write merged content to both locations
-                if resolved.merged_content is not None:
-                    self._write_merged_content(change, resolved.merged_content)
-
         except PermissionError as e:
             raise SyncError(
                 message=f"Permission denied: {e}",
@@ -400,17 +392,19 @@ class BidirectionalSync:
             ) from e
 
     def _copy_to_store(self, change: FileChange) -> None:
-        """Copy file or directory from project to store.
+        """Copy file or directory from project to store, or delete from store if not in project.
 
         Handles both new files (ADDED_LOCAL) and modified files.
         Uses shutil.copy2 to preserve metadata for files.
         Uses shutil.copytree with copy_function=shutil.copy2 for directories.
 
+        If local_path is None (file only exists in store), deletes from store.
+
         Args:
-            change: FileChange with local_path to copy
+            change: FileChange with local_path to copy (or None to delete)
 
         Raises:
-            PermissionError: If permission denied during copy
+            PermissionError: If permission denied during copy/delete
             OSError: If file operation fails
 
         Validates:
@@ -419,11 +413,22 @@ class BidirectionalSync:
         - Requirement 10.3: Preserve directory structure and permissions
         - Requirement 11.1: Display the specific file and error reason
         """
-        if change.local_path is None:
-            return
-
         # Determine destination path in store
         dest_path = self.store_path / change.path
+
+        # If local_path is None, delete from store (user chose to delete)
+        if change.local_path is None:
+            if dest_path.exists():
+                try:
+                    if dest_path.is_dir():
+                        shutil.rmtree(dest_path)
+                    else:
+                        dest_path.unlink()
+                except PermissionError:
+                    raise
+                except OSError:
+                    raise
+            return
 
         try:
             # Ensure parent directory exists
@@ -435,11 +440,7 @@ class BidirectionalSync:
                 if dest_path.exists():
                     shutil.rmtree(dest_path)
                 # Copy directory tree with metadata preservation (Requirement 10.3)
-                shutil.copytree(
-                    change.local_path,
-                    dest_path,
-                    copy_function=shutil.copy2
-                )
+                shutil.copytree(change.local_path, dest_path, copy_function=shutil.copy2)
             else:
                 # Copy file with metadata preservation (Requirement 10.1, 10.2)
                 shutil.copy2(change.local_path, dest_path)
@@ -453,17 +454,19 @@ class BidirectionalSync:
             raise
 
     def _copy_to_project(self, change: FileChange) -> None:
-        """Copy file or directory from store to project.
+        """Copy file or directory from store to project, or delete from project if not in store.
 
         Handles both new files (ADDED_REMOTE) and modified files.
         Uses shutil.copy2 to preserve metadata for files.
         Uses shutil.copytree with copy_function=shutil.copy2 for directories.
 
+        If remote_path is None (file only exists in project), deletes from project.
+
         Args:
-            change: FileChange with remote_path to copy
+            change: FileChange with remote_path to copy (or None to delete)
 
         Raises:
-            PermissionError: If permission denied during copy
+            PermissionError: If permission denied during copy/delete
             OSError: If file operation fails
 
         Validates:
@@ -472,11 +475,22 @@ class BidirectionalSync:
         - Requirement 10.3: Preserve directory structure and permissions
         - Requirement 11.1: Display the specific file and error reason
         """
-        if change.remote_path is None:
-            return
-
         # Determine destination path in project
         dest_path = self.project_dir / change.path
+
+        # If remote_path is None, delete from project (user chose to delete)
+        if change.remote_path is None:
+            if dest_path.exists():
+                try:
+                    if dest_path.is_dir():
+                        shutil.rmtree(dest_path)
+                    else:
+                        dest_path.unlink()
+                except PermissionError:
+                    raise
+                except OSError:
+                    raise
+            return
 
         try:
             # Ensure parent directory exists
@@ -488,11 +502,7 @@ class BidirectionalSync:
                 if dest_path.exists():
                     shutil.rmtree(dest_path)
                 # Copy directory tree with metadata preservation (Requirement 10.3)
-                shutil.copytree(
-                    change.remote_path,
-                    dest_path,
-                    copy_function=shutil.copy2
-                )
+                shutil.copytree(change.remote_path, dest_path, copy_function=shutil.copy2)
             else:
                 # Copy file with metadata preservation (Requirement 10.1, 10.2)
                 shutil.copy2(change.remote_path, dest_path)
@@ -504,58 +514,6 @@ class BidirectionalSync:
         except OSError:
             # Re-raise to be caught by _apply_single_change
             raise
-
-    def _write_merged_content(self, change: FileChange, content: str) -> None:
-        """Write merged content to both project and store.
-
-        Preserves file permissions and timestamps from the original files.
-
-        Args:
-            change: FileChange with paths to write to
-            content: Merged content to write
-
-        Validates:
-        - Requirement 10.1: Preserve file permissions (chmod)
-        - Requirement 10.2: Preserve file modification timestamps
-        """
-        import os
-        import time
-
-        # Get original file metadata for preservation
-        original_mode = None
-        original_mtime = None
-
-        # Prefer local file metadata, fallback to remote
-        if change.local_path and change.local_path.exists():
-            stat_info = change.local_path.stat()
-            original_mode = stat_info.st_mode
-            original_mtime = stat_info.st_mtime
-        elif change.remote_path and change.remote_path.exists():
-            stat_info = change.remote_path.stat()
-            original_mode = stat_info.st_mode
-            original_mtime = stat_info.st_mtime
-
-        # Write to project
-        project_path = self.project_dir / change.path
-        project_path.parent.mkdir(parents=True, exist_ok=True)
-        project_path.write_text(content, encoding='utf-8')
-
-        # Preserve metadata on project file
-        if original_mode is not None:
-            os.chmod(project_path, original_mode)
-        if original_mtime is not None:
-            os.utime(project_path, (time.time(), original_mtime))
-
-        # Write to store
-        store_path = self.store_path / change.path
-        store_path.parent.mkdir(parents=True, exist_ok=True)
-        store_path.write_text(content, encoding='utf-8')
-
-        # Preserve metadata on store file
-        if original_mode is not None:
-            os.chmod(store_path, original_mode)
-        if original_mtime is not None:
-            os.utime(store_path, (time.time(), original_mtime))
 
     def _push_phase(self, resolved: list[ResolvedChange]) -> int:
         """Execute Store → Remote synchronization.
@@ -593,13 +551,11 @@ class BidirectionalSync:
             # Commit and push (Requirement 8.3)
             push_result = self.git_backend.commit_and_push(message=commit_message)
 
-            files_changed = push_result.get('files_changed', 0)
+            files_changed = push_result.get("files_changed", 0)
 
-            if push_result.get('pushed', False):
-                self.console.print(
-                    f"[cyan]↑ Pushed {files_changed} file(s) to remote[/cyan]"
-                )
-            elif push_result.get('committed', False):
+            if push_result.get("pushed", False):
+                self.console.print(f"[cyan]↑ Pushed {files_changed} file(s) to remote[/cyan]")
+            elif push_result.get("committed", False):
                 self.console.print(
                     f"[yellow]Committed {files_changed} file(s) but push failed[/yellow]"
                 )
@@ -613,19 +569,28 @@ class BidirectionalSync:
             error_msg = str(e).lower()
 
             # Detect network error
-            if any(keyword in error_msg for keyword in [
-                "network", "connection", "timeout", "refused",
-                "could not resolve", "unable to access", "fatal:"
-            ]):
+            if any(
+                keyword in error_msg
+                for keyword in [
+                    "network",
+                    "connection",
+                    "timeout",
+                    "refused",
+                    "could not resolve",
+                    "unable to access",
+                    "fatal:",
+                ]
+            ):
                 raise SyncError(
                     message=f"Push failed due to network error: {e}",
                     category=ErrorCategory.GIT,
                 ) from e
 
             # Detect authentication error
-            if any(keyword in error_msg for keyword in [
-                "authentication", "permission", "denied", "403", "401"
-            ]):
+            if any(
+                keyword in error_msg
+                for keyword in ["authentication", "permission", "denied", "403", "401"]
+            ):
                 raise SyncError(
                     message=f"Push failed due to authentication error: {e}",
                     category=ErrorCategory.GIT,
@@ -660,18 +625,8 @@ class BidirectionalSync:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         # Count changes by type
-        local_count = sum(
-            1 for r in resolved
-            if r.resolution == Resolution.USE_LOCAL
-        )
-        remote_count = sum(
-            1 for r in resolved
-            if r.resolution == Resolution.USE_REMOTE
-        )
-        merge_count = sum(
-            1 for r in resolved
-            if r.resolution == Resolution.MERGE
-        )
+        local_count = sum(1 for r in resolved if r.resolution == Resolution.USE_LOCAL)
+        remote_count = sum(1 for r in resolved if r.resolution == Resolution.USE_REMOTE)
 
         # Build summary line
         parts = []
@@ -679,8 +634,6 @@ class BidirectionalSync:
             parts.append(f"{local_count} from project")
         if remote_count > 0:
             parts.append(f"{remote_count} from store")
-        if merge_count > 0:
-            parts.append(f"{merge_count} merged")
 
         summary = ", ".join(parts) if parts else "sync"
 
@@ -773,9 +726,6 @@ class BidirectionalSync:
             if change_type == ChangeType.ADDED_REMOTE:
                 return "would copy to project (new file)"
             return "would copy to project (overwrite)"
-
-        elif resolution == Resolution.MERGE:
-            return "would merge and write to both"
 
         elif resolution == Resolution.SKIP:
             return "would skip"

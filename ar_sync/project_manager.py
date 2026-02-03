@@ -72,8 +72,9 @@ class ProjectManager:
                 # Copy file
                 shutil.copy2(source, dest)
 
-    def link_project(self, project_dir: Path, project_name: str,
-                    targets: list[str], force: bool = False) -> list[str]:
+    def link_project(
+        self, project_dir: Path, project_name: str, targets: list[str], force: bool = False
+    ) -> list[str]:
         """Create symlinks from project directory to store.
 
         Creates symbolic links in the project directory pointing to the
@@ -253,3 +254,66 @@ class ProjectManager:
             if (project_dir / target).exists():
                 found_targets.append(target)
         return found_targets
+
+    @staticmethod
+    def detect_current_project(
+        store_path: Path, current_dir: Path | None = None
+    ) -> tuple[str | None, str | None]:
+        """Detect current project using hybrid approach.
+
+        Uses multiple detection methods in priority order:
+        1. Marker file (.ar-sync-project)
+        2. Symlink reverse lookup
+        3. Directory name matching
+        4. Path matching from metadata
+
+        Args:
+            store_path: Path to the store directory
+            current_dir: Directory to check (defaults to current working directory)
+
+        Returns:
+            Tuple of (project_name, detection_method) or (None, None) if not found
+        """
+        if current_dir is None:
+            current_dir = Path.cwd()
+
+        current_dir = current_dir.resolve()
+
+        # Method 1: Check for marker file
+        marker_file = current_dir / ".ar-sync-project"
+        if marker_file.exists():
+            try:
+                project_name = marker_file.read_text().strip()
+                if project_name:
+                    return project_name, "marker"
+            except Exception:
+                pass
+
+        # Method 2: Symlink reverse lookup
+        try:
+            for item in current_dir.iterdir():
+                if item.is_symlink():
+                    target = item.resolve()
+                    # Check if symlink points to store
+                    try:
+                        relative = target.relative_to(store_path)
+                        # Extract project name (first part of path)
+                        if relative.parts:
+                            project_name = relative.parts[0]
+                            return project_name, "symlink"
+                    except ValueError:
+                        # Not relative to store_path
+                        continue
+        except Exception:
+            pass
+
+        # Method 3: Directory name matching
+        project_name = current_dir.name
+        project_store_dir = store_path / project_name
+        if project_store_dir.exists():
+            return project_name, "dirname"
+
+        # Method 4: Would need metadata access - skip for now
+        # This would be handled at a higher level with StoreManager
+
+        return None, None

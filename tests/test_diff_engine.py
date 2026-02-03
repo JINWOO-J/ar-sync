@@ -142,9 +142,7 @@ class TestDiffEngineCompareDirectories:
         (store_dir / ".cursor" / "settings.json").write_text('{"remote": true}')
 
         engine = DiffEngine()
-        changes = engine.compare_directories(
-            project_dir, store_dir, ["AGENTS.md", ".cursor"]
-        )
+        changes = engine.compare_directories(project_dir, store_dir, ["AGENTS.md", ".cursor"])
 
         assert len(changes) == 2
         paths = {c.path for c in changes}
@@ -159,9 +157,7 @@ class TestDiffEngineCompareDirectories:
         store_dir.mkdir()
 
         engine = DiffEngine()
-        changes = engine.compare_directories(
-            project_dir, store_dir, ["nonexistent.txt"]
-        )
+        changes = engine.compare_directories(project_dir, store_dir, ["nonexistent.txt"])
 
         assert len(changes) == 0
 
@@ -381,7 +377,7 @@ class TestDiffEngineIsBinaryFile:
     def test_binary_file_by_extension(self, tmp_path):
         """Test that files with binary extensions are detected."""
         png_file = tmp_path / "image.png"
-        png_file.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
+        png_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
 
         engine = DiffEngine()
         assert engine.is_binary_file(png_file) is True
@@ -389,7 +385,7 @@ class TestDiffEngineIsBinaryFile:
     def test_binary_file_by_content(self, tmp_path):
         """Test that files with null bytes are detected as binary."""
         binary_file = tmp_path / "data.dat"
-        binary_file.write_bytes(b'Some text\x00with null bytes')
+        binary_file.write_bytes(b"Some text\x00with null bytes")
 
         engine = DiffEngine()
         assert engine.is_binary_file(binary_file) is True
@@ -430,8 +426,8 @@ class TestDiffEngineBinaryFileHandling:
         store_dir.mkdir()
 
         # Create binary files with different content
-        (project_dir / "image.png").write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
-        (store_dir / "image.png").write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x01' * 100)
+        (project_dir / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+        (store_dir / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x01" * 100)
 
         engine = DiffEngine()
         changes = engine.compare_directories(project_dir, store_dir, ["image.png"])
@@ -452,13 +448,11 @@ class TestDiffEngineBinaryFileHandling:
         (store_dir / "readme.md").write_text("# Different Readme")
 
         # Create binary file
-        (project_dir / "data.bin").write_bytes(b'\x00\x01\x02\x03')
-        (store_dir / "data.bin").write_bytes(b'\x04\x05\x06\x07')
+        (project_dir / "data.bin").write_bytes(b"\x00\x01\x02\x03")
+        (store_dir / "data.bin").write_bytes(b"\x04\x05\x06\x07")
 
         engine = DiffEngine()
-        changes = engine.compare_directories(
-            project_dir, store_dir, ["readme.md", "data.bin"]
-        )
+        changes = engine.compare_directories(project_dir, store_dir, ["readme.md", "data.bin"])
 
         changes_by_path = {c.path: c for c in changes}
         assert changes_by_path["readme.md"].is_binary is False

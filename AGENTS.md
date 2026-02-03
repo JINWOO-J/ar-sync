@@ -1,73 +1,164 @@
-# Role
+# ar-sync: Principal Architect for AI Context & Governance
 
-당신은 **AI 컨텍스트 및 거버넌스 수석 아키텍트(Principal Architect for AI Context & Governance)**입니다.
-사용자의 프로젝트를 검토하여 **"중앙 통제 및 위임 구조"**의 규칙 시스템을 설계하고, 이를 **실제 파일로 구현(Implement)**하는 권한을 가집니다.
+## Project Context & Operations
 
-# Core Philosophy (핵심 철학)
+ar-sync is a Python CLI tool for synchronizing AI IDE configuration files across multiple machines using Git as a storage backend. The tool manages configuration files for 12+ AI IDEs (Claude, Cursor, Windsurf, Kiro, etc.) through symlink-based architecture and bidirectional synchronization.
 
-1.  **Strict 500-Line Limit:** 모든 `AGENTS.md` 파일은 가독성과 토큰 효율성을 위해 **500라인 미만**으로 유지합니다.
-2.  **No Fluff, No Emojis:** 컨텍스트 낭비를 막기 위해 **이모지(🎯, 🚀 등)와 불필요한 서술을 절대 사용하지 마십시오.** 오직 명확하고 간결한 텍스트로만 작성합니다.
-3.  **Central Control & Delegation:** 루트 파일은 "관제탑"이며, 상세 구현은 하위 파일로 "위임"합니다.
-4.  **Machine-Readable Clarity:** 실행 불가능한 조언 대신, **"Golden Rules(Do's & Don'ts)"**와 **"Operational Commands"** 같은 구체적 지침을 제공합니다.
+**Business Goal:** Enable developers to maintain consistent AI IDE configurations across multiple development environments with version control and conflict resolution.
 
-# Execution Protocol (실행 절차)
+**Tech Stack:** Python 3.10+, Typer, GitPython, PyYAML, Rich, pytest, hypothesis
 
-프로젝트를 분석한 뒤, 다음 단계에 따라 **파일 생성(Create/Write) 작업을 즉시 수행**하십시오.
+### Operational Commands
 
-## Step 1: Architect Root `./AGENTS.md`
+```bash
+make install-dev          # Install with dev dependencies
+make run                  # Run CLI during development
+python -m ar_sync.cli     # Direct CLI execution
+make test                 # Run all tests (489 tests)
+make test-cov             # With coverage report
+make lint                 # Ruff linter
+make type-check           # Mypy strict mode
+make format               # Code formatting
+make verify               # Full CI/CD checks (lint + type-check + tests)
+ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git
+ars init                  # Initialize project
+ars sync                  # Bidirectional sync
+ars status                # View status
+```
 
-루트 파일은 다음 필수 섹션을 포함하여 작성합니다.
+## Golden Rules
 
--   **Project Context & Operations**
-    -   비즈니스 목표 및 Tech Stack 요약.
-    -   **Operational Commands:** 프로젝트 빌드, 실행, 테스트를 위한 구체적 명령어 명시 (예: `npm run dev`, `npm test`).
--   **Golden Rules**
-    -   **Immutable:** 절대 타협할 수 없는 보안/아키텍처 제약.
-    -   **Do's & Don'ts:** "항상 공식 SDK를 사용하라", "API 키를 하드코딩하지 마라" 등 명확한 행동 수칙.
--   **Standards & References**
-    -   코딩 컨벤션 요약 (기존 문서 링크 권장).
-    -   Git 전략 및 커밋 메시지 포맷.
-    -   **Maintenance Policy:** "규칙과 코드의 괴리가 발생하면 업데이트를 제안하라"는 자가 치유 조항.
--   **Context Map (Action-Based Routing) [CRITICAL]**
-    -   **Constraint 1:** 표(Table) 형식 절대 금지.
-    -   **Constraint 2:** 이모지 사용 금지.
-    -   **Format:** `- **[트리거/작업 영역 명시](상대 경로)** — (한 줄 설명)`
-    -   **Example:**
-        ```markdown
-        -   **[API Routes 수정 (BE)](./app/api/AGENTS.md)** — Route Handler 작성 및 서버 로직 수정 시.
-        -   **[UI 컴포넌트 (FE/Tailwind)](./components/AGENTS.md)** — shadcn/ui 및 스타일링 작업 시.
-        -   **[상태 관리 (Hooks)](./hooks/AGENTS.md)** — 클라이언트 상태 및 커스텀 훅 작성 시.
-        ```
+### Immutable Constraints
 
-## Step 2: Architect Nested Rules (Deep Contextual Analysis)
+1. **Test Isolation:** ALL tests MUST use `isolate_config_and_store` fixture from `tests/conftest.py`. Production config (`~/.config/ar-sync/config.yaml`) and store (`~/.ar-sync-store/`) must NEVER be modified by tests.
 
-단순 폴더 매핑이 아닌, **"고유한 컨텍스트(High-Context Zone)"**가 발생하는 지점을 식별하여 파일을 생성하십시오.
+2. **Type Safety:** Strict mypy mode is enforced. All functions must have complete type hints. No `Any` types without explicit justification.
 
-### 2.1 Detection Logic (생성 기준)
+3. **Backward Compatibility:** Configuration file format (`version: 1`) must remain compatible. Breaking changes require migration path.
 
-다음과 같은 신호(Signal)가 감지될 때 별도의 `AGENTS.md`를 생성합니다:
+4. **Git Safety:** Never force push to remote. Always handle merge conflicts through interactive resolution.
 
--   **Dependency Boundary:** `package.json`, `requirements.txt`, `Cargo.toml` 등이 별도로 존재하는 경우.
--   **Framework Boundary:** 기술 스택이 전환되는 지점 (예: `Next.js` 내부, `FastAPI` 서버, `Terraform` 폴더).
--   **Logical Boundary:** 비즈니스 로직 밀도가 높은 핵심 모듈 (예: `features/billing`, `core/engine`).
+5. **Cross-Platform:** Code must work on macOS, Linux, and Windows. Use `Path` from `pathlib`, not string concatenation.
 
-### 2.2 Nested File Structure (필수 섹션)
+### Do's & Don'ts
 
-하위 파일은 구체적이고 실무적인 내용으로 구성합니다:
+**DO:**
+- Use `Path.expanduser()` for home directory paths
+- Use `monkeypatch` in pytest fixtures for environment isolation
+- Validate user input before file operations
+- Create backups before overwriting files
+- Write property-based tests for data transformations
+- Use English for all user-facing messages
+- Follow TDD: write test first, then minimal implementation
+- Run `make format` before committing
+- Run `make lint` to verify code quality
+- Run `make verify` before pushing
+- Remove trailing whitespace and unused imports/variables
 
--   **Module Context:** 해당 모듈의 역할과 의존성 관계 정의.
--   **Tech Stack & Constraints:** 해당 폴더에서만 사용되는 라이브러리/버전 명시 (예: "여기서는 axios 대신 fetch만 사용").
--   **Implementation Patterns:** 자주 사용되는 코드 패턴, 보일러플레이트 경로, 파일 네이밍 규칙.
--   **Testing Strategy:** 해당 모듈 전용 테스트 명령어 및 테스트 작성 패턴.
--   **Local Golden Rules:** 해당 영역에서 범하기 쉬운 실수에 대한 **Do's & Don'ts**.
+**DON'T:**
+- Use `cat` for files >100 lines (use `rg` or `grep` instead)
+- Hardcode paths (use config or constants)
+- Modify production config/store in tests
+- Use symbolic links in tests without cleanup
+- Skip error handling for file operations
+- Use emojis in code or documentation
+- Commit without running `make verify`
+- Break existing CLI command signatures
+- Leave trailing whitespace or unused code
 
-# Rules for Agent (Tool Usage)
+## Standards & References
 
-1.  **Direct Execution:** "파일을 만들까요?"라고 묻지 말고 **즉시 생성(Generate)**하십시오.
-2.  **Overwrite Authority:** 기존 `AGENTS.md`가 있다면 이 베스트 프랙티스 구조로 **덮어쓰기(Overwrite)** 하십시오.
-3.  **Markdown Only:** 생성되는 파일 내용은 유효한 Markdown 문법이어야 하며, 불필요한 설명 없이 코드 블록만 출력하십시오.
+### Code Conventions
 
----
+- Line length: 100 characters (Ruff enforced)
+- Import order: stdlib → third-party → local (Ruff I rule)
+- Naming: snake_case for functions/variables, PascalCase for classes
+- Docstrings: Google style for public APIs
+- Error messages: Clear, actionable, English only
+- Linting workflow: `make format` → `make lint` → `make type-check` → `make verify`
+- Common Ruff rules: W291 (trailing whitespace), W293 (blank line whitespace), F401 (unused import), F841 (unused variable)
 
-**Command:**
-Analyze the current project immediately and **EXECUTE the creation** of the optimized `./AGENTS.md` system. Ensure **NO EMOJIS** are used to maximize context efficiency.
+### Git Strategy
+
+- Branch: `main` (protected)
+- Commit format: `<type>: <description>` (e.g., `feat: add bidirectional sync`)
+- Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
+- PR requirements: All tests pass, type check clean, no coverage regression
+
+### Testing Strategy
+
+- Unit tests: `tests/test_*.py` (one file per module)
+- Integration tests: `tests/test_*_integration.py`
+- Property tests: `tests/test_properties_*.py` (hypothesis)
+- Coverage target: >90% (current: 77%)
+- Test naming: `test_<function>_<scenario>_<expected>`
+
+### Maintenance Policy
+
+When code and rules diverge:
+1. Identify the discrepancy (code review, test failure, user report)
+2. Determine correct behavior (requirements, design docs)
+3. Update code OR update rules (with justification)
+4. Add regression test to prevent recurrence
+5. Update related documentation
+
+## Context Map (Action-Based Routing)
+
+- **[CLI Commands](./ar_sync/cli.py)** — Typer-based CLI entry point, command definitions (setup, init, sync, status, etc.)
+
+- **[Configuration Management](./ar_sync/config_manager.py)** — LocalConfig loading/saving, YAML serialization, path expansion
+
+- **[Data Models](./ar_sync/models.py)** — LocalConfig, StoreMetadata, ProjectInfo dataclasses with validation
+
+- **[Git Backend](./ar_sync/git_backend.py)** — Git operations (clone, pull, push, commit), remote synchronization
+
+- **[Project Manager](./ar_sync/project_manager.py)** — Project registration, symlink creation, file operations
+
+- **[Store Manager](./ar_sync/store_manager.py)** — Store metadata management, project tracking
+
+- **[Bidirectional Sync Engine](./ar_sync/sync/AGENTS.md)** — Conflict detection, resolution, merge strategies
+
+- **[Template System](./ar_sync/template_manager.py)** — Template scanning, metadata parsing, interactive selection
+
+- **[Error Handling](./ar_sync/errors.py)** — Custom exceptions (ARSyncError, ConfigError, SyncError, etc.)
+
+- **[Test Suite](./tests/AGENTS.md)** — Unit, integration, property-based tests with isolation fixtures
+
+- **[Spec Documents](./.kiro/specs/)** — Requirements, design, tasks for features
+
+## Architecture Notes
+
+### Symlink-Based Design
+
+Projects use symlinks pointing to store:
+```
+~/my-project/.cursor -> ~/ar-sync-store/my-project/.cursor
+```
+
+Benefits: Single source of truth, automatic sync, no file duplication
+Tradeoffs: Requires symlink support (Windows Developer Mode)
+
+### Bidirectional Sync Flow
+
+```
+Local Project <--pull/push--> Store <--sync--> Remote Git
+```
+
+- `ars pull`: remote → store → project
+- `ars push`: project → store → remote
+- `ars sync`: bidirectional with conflict resolution
+
+### Conflict Resolution Strategy
+
+1. Detect conflicts (DiffEngine)
+2. Classify: only_in_local, only_in_store, modified_both
+3. Interactive prompt with smart defaults
+4. Apply resolution (MergeEngine)
+5. Atomic operations with rollback on failure
+
+## Performance Targets
+
+- `ars status`: <500ms
+- `ars sync` (no conflicts): <2s
+- `ars init`: <1s
+- Test suite: <30s (full run)

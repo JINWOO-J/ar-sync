@@ -7,7 +7,7 @@ Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 """
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -78,61 +78,73 @@ class TestTemplateSelectorInit:
 class TestSelectCategories:
     """Test suite for select_categories method."""
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_all_categories(self, mock_ask, selector):
-        """Test selecting all categories with 'all' input.
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_all_categories(self, mock_checkbox, selector):
+        """Test selecting all categories with questionary.
 
         Requirement 2.1: 카테고리 목록을 체크박스 형태로 표시
         """
-        mock_ask.return_value = "all"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["agents", "rules", "skills"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
         assert result == ["agents", "rules", "skills"]
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_specific_categories(self, mock_ask, selector):
-        """Test selecting specific categories by number."""
-        mock_ask.return_value = "1,3"
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_specific_categories(self, mock_checkbox, selector):
+        """Test selecting specific categories."""
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["agents", "skills"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
         assert result == ["agents", "skills"]
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_single_category(self, mock_ask, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_single_category(self, mock_checkbox, selector):
         """Test selecting a single category."""
-        mock_ask.return_value = "2"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["rules"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
         assert result == ["rules"]
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_cancel_with_empty_input(self, mock_ask, selector):
-        """Test cancellation with empty input.
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_with_empty_input(self, mock_checkbox, selector):
+        """Test cancellation with empty selection.
 
         Requirement 2.6: 취소 시 적절한 메시지 표시
         """
-        mock_ask.return_value = ""
+        mock_result = MagicMock()
+        mock_result.ask.return_value = []
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_cancel_with_q(self, mock_ask, selector):
-        """Test cancellation with 'q' input."""
-        mock_ask.return_value = "q"
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_with_keyboard_interrupt(self, mock_checkbox, selector):
+        """Test cancellation with KeyboardInterrupt."""
+        mock_result = MagicMock()
+        mock_result.ask.side_effect = KeyboardInterrupt()
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_invalid_input(self, mock_ask, selector):
-        """Test handling of invalid input."""
-        mock_ask.return_value = "invalid"
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_with_none_return(self, mock_checkbox, selector):
+        """Test cancellation when questionary returns None."""
+        mock_result = MagicMock()
+        mock_result.ask.return_value = None
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_categories()
 
@@ -142,13 +154,16 @@ class TestSelectCategories:
 class TestSelectTemplates:
     """Test suite for select_templates method."""
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_all_templates(self, mock_ask, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_all_templates(self, mock_checkbox, selector):
         """Test selecting all templates in a category.
 
         Requirement 2.2: 템플릿 목록을 다중 선택 가능한 형태로 표시
         """
-        mock_ask.return_value = "all"
+        # Mock questionary.checkbox to return both templates
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect", "reviewer"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents")
 
@@ -156,47 +171,57 @@ class TestSelectTemplates:
         names = {t.name for t in result}
         assert names == {"architect", "reviewer"}
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_specific_templates(self, mock_ask, selector):
-        """Test selecting specific templates by number."""
-        mock_ask.return_value = "1"
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_specific_templates(self, mock_checkbox, selector):
+        """Test selecting specific templates by name."""
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents")
 
         assert len(result) == 1
         assert result[0].name == "architect"
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_multiple_templates(self, mock_ask, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_multiple_templates(self, mock_checkbox, selector):
         """Test selecting multiple templates."""
-        mock_ask.return_value = "1,2"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect", "reviewer"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents")
 
         assert len(result) == 2
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_skip_category(self, mock_ask, selector):
-        """Test skipping a category with 's' input."""
-        mock_ask.return_value = "s"
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_skip_category(self, mock_checkbox, selector):
+        """Test skipping a category (no selection)."""
+        mock_result = MagicMock()
+        mock_result.ask.return_value = []
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents")
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_skip_with_empty_input(self, mock_ask, selector):
-        """Test skipping with empty input."""
-        mock_ask.return_value = ""
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_with_keyboard_interrupt(self, mock_checkbox, selector):
+        """Test cancellation with KeyboardInterrupt."""
+        mock_result = MagicMock()
+        mock_result.ask.side_effect = KeyboardInterrupt()
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents")
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_select_with_search_query(self, mock_ask, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_select_with_search_query(self, mock_checkbox, selector):
         """Test selecting templates with search filter."""
-        mock_ask.return_value = "all"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect"]
+        mock_checkbox.return_value = mock_result
 
         result = selector.select_templates("agents", search_query="architect")
 
@@ -205,7 +230,6 @@ class TestSelectTemplates:
 
     def test_empty_category(self, template_manager):
         """Test selecting from empty category."""
-        # Create selector with manager that has empty rules
         selector = TemplateSelector(template_manager)
 
         # Search for non-existent term
@@ -217,7 +241,7 @@ class TestSelectTemplates:
 class TestConfirmSelection:
     """Test suite for confirm_selection method."""
 
-    @patch('ar_sync.template_selector.Confirm.ask')
+    @patch("ar_sync.template_selector.Confirm.ask")
     def test_confirm_selection(self, mock_confirm, selector):
         """Test confirming selection.
 
@@ -239,7 +263,7 @@ class TestConfirmSelection:
 
         assert result is True
 
-    @patch('ar_sync.template_selector.Confirm.ask')
+    @patch("ar_sync.template_selector.Confirm.ask")
     def test_cancel_selection(self, mock_confirm, selector):
         """Test cancelling selection.
 
@@ -267,7 +291,7 @@ class TestConfirmSelection:
 
         assert result is False
 
-    @patch('ar_sync.template_selector.Confirm.ask')
+    @patch("ar_sync.template_selector.Confirm.ask")
     def test_confirm_multiple_categories(self, mock_confirm, selector):
         """Test confirming selection from multiple categories."""
         mock_confirm.return_value = True
@@ -297,46 +321,63 @@ class TestConfirmSelection:
 class TestRunInteractiveSelection:
     """Test suite for run_interactive_selection method."""
 
-    @patch('ar_sync.template_selector.Confirm.ask')
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_full_interactive_flow(self, mock_prompt, mock_confirm, selector):
+    @patch("ar_sync.template_selector.Confirm.ask")
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_full_interactive_flow(self, mock_checkbox, mock_confirm, selector):
         """Test full interactive selection flow."""
-        # Category selection -> all, Template selection -> all for each, Confirm -> yes
-        mock_prompt.side_effect = ["all", "all", "all", "all"]
+        # Mock questionary.checkbox for both category and template selection
+        mock_result = MagicMock()
+        mock_result.ask.side_effect = [
+            ["agents", "rules", "skills"],  # Category selection
+            ["architect", "reviewer"],  # agents templates
+            ["coding-style"],  # rules templates
+            ["web-search"],  # skills templates
+        ]
+        mock_checkbox.return_value = mock_result
+
+        # Confirm -> yes
         mock_confirm.return_value = True
 
         result = selector.run_interactive_selection()
 
         assert len(result) > 0
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_cancel_at_category_selection(self, mock_prompt, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_at_category_selection(self, mock_checkbox, selector):
         """Test cancellation at category selection.
 
         Requirement 2.6: 취소 시 적절한 메시지 표시
         """
-        mock_prompt.return_value = "q"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = []
+        mock_checkbox.return_value = mock_result
 
         result = selector.run_interactive_selection()
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Confirm.ask')
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_cancel_at_confirmation(self, mock_prompt, mock_confirm, selector):
+    @patch("ar_sync.template_selector.Confirm.ask")
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_cancel_at_confirmation(self, mock_checkbox, mock_confirm, selector):
         """Test cancellation at confirmation step."""
-        mock_prompt.side_effect = ["1", "all"]  # Select agents, all templates
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect", "reviewer"]
+        mock_checkbox.return_value = mock_result
+
         mock_confirm.return_value = False
 
-        result = selector.run_interactive_selection()
+        result = selector.run_interactive_selection(categories=["agents"])
 
         assert result == []
 
-    @patch('ar_sync.template_selector.Confirm.ask')
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_with_predefined_categories(self, mock_prompt, mock_confirm, selector):
+    @patch("ar_sync.template_selector.Confirm.ask")
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_with_predefined_categories(self, mock_checkbox, mock_confirm, selector):
         """Test with predefined categories (skip category selection)."""
-        mock_prompt.return_value = "all"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect", "reviewer"]
+        mock_checkbox.return_value = mock_result
+
         mock_confirm.return_value = True
 
         result = selector.run_interactive_selection(categories=["agents"])
@@ -344,11 +385,14 @@ class TestRunInteractiveSelection:
         assert len(result) == 2
         assert all(t.category == "agents" for t in result)
 
-    @patch('ar_sync.template_selector.Confirm.ask')
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_with_search_query(self, mock_prompt, mock_confirm, selector):
+    @patch("ar_sync.template_selector.Confirm.ask")
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_with_search_query(self, mock_checkbox, mock_confirm, selector):
         """Test with search query filter."""
-        mock_prompt.return_value = "all"
+        mock_result = MagicMock()
+        mock_result.ask.return_value = ["architect"]
+        mock_checkbox.return_value = mock_result
+
         mock_confirm.return_value = True
 
         result = selector.run_interactive_selection(
@@ -359,12 +403,14 @@ class TestRunInteractiveSelection:
         assert len(result) == 1
         assert result[0].name == "architect"
 
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_skip_all_templates(self, mock_prompt, selector):
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_skip_all_templates(self, mock_checkbox, selector):
         """Test skipping all template selections."""
-        mock_prompt.side_effect = ["1", "s"]  # Select agents, skip templates
+        mock_result = MagicMock()
+        mock_result.ask.return_value = []
+        mock_checkbox.return_value = mock_result
 
-        result = selector.run_interactive_selection()
+        result = selector.run_interactive_selection(categories=["agents"])
 
         assert result == []
 
@@ -372,17 +418,36 @@ class TestRunInteractiveSelection:
 class TestIntegrationWithRealTemplates:
     """Integration tests with actual templates directory."""
 
-    @patch('ar_sync.template_selector.Confirm.ask')
-    @patch('ar_sync.template_selector.Prompt.ask')
-    def test_real_templates_selection(self, mock_prompt, mock_confirm):
+    @patch("ar_sync.template_selector.Confirm.ask")
+    @patch("ar_sync.template_selector.questionary.checkbox")
+    def test_real_templates_selection(self, mock_checkbox, mock_confirm):
         """Test selection with real templates."""
         manager = TemplateManager()
         selector = TemplateSelector(manager)
 
-        mock_prompt.side_effect = ["1", "1"]  # Select agents, first template
+        # Get first template name from real templates
+        templates = manager.get_templates_by_category("agents")
+
+        # Mock questionary.checkbox
+        mock_result = MagicMock()
+        if templates:
+            mock_result.ask.side_effect = [
+                ["agents"],  # Category selection
+                [templates[0].name],  # Template selection
+            ]
+        else:
+            mock_result.ask.side_effect = [
+                ["agents"],  # Category selection
+                [],  # No templates
+            ]
+        mock_checkbox.return_value = mock_result
+
         mock_confirm.return_value = True
 
         result = selector.run_interactive_selection()
 
-        assert len(result) == 1
-        assert result[0].category == "agents"
+        if templates:
+            assert len(result) == 1
+            assert result[0].category == "agents"
+        else:
+            assert len(result) == 0

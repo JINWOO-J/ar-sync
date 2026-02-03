@@ -24,9 +24,7 @@ class TestSyncError:
         Validates: Requirement 11.1
         """
         error = SyncError(
-            "File operation failed",
-            ErrorCategory.FILE_SYSTEM,
-            file_path="/path/to/file.txt"
+            "File operation failed", ErrorCategory.FILE_SYSTEM, file_path="/path/to/file.txt"
         )
         assert error.file_path == "/path/to/file.txt"
         assert error.message == "File operation failed"
@@ -45,9 +43,7 @@ class TestSyncError:
         Validates: Requirement 11.1
         """
         error = SyncError(
-            "Permission denied",
-            ErrorCategory.FILE_SYSTEM,
-            file_path=".kiro/config.yaml"
+            "Permission denied", ErrorCategory.FILE_SYSTEM, file_path=".kiro/config.yaml"
         )
         formatted = error.format_error()
 
@@ -79,9 +75,7 @@ class TestSyncError:
         Validates: Requirement 11.3
         """
         error = SyncError(
-            "Cannot write file",
-            ErrorCategory.FILE_SYSTEM,
-            file_path="/path/to/file.txt"
+            "Cannot write file", ErrorCategory.FILE_SYSTEM, file_path="/path/to/file.txt"
         )
 
         assert len(error.recovery_steps) > 0
@@ -97,8 +91,9 @@ class TestSyncError:
 
         assert len(error.recovery_steps) > 0
         # Should include network or git-related guidance
-        assert any("network" in step.lower() or "git" in step.lower()
-                   for step in error.recovery_steps)
+        assert any(
+            "network" in step.lower() or "git" in step.lower() for step in error.recovery_steps
+        )
 
     def test_recovery_steps_for_user_input_category(self):
         """Test recovery steps are generated for USER_INPUT category.
@@ -109,8 +104,9 @@ class TestSyncError:
 
         assert len(error.recovery_steps) > 0
         # Should include help or syntax guidance
-        assert any("help" in step.lower() or "syntax" in step.lower()
-                   for step in error.recovery_steps)
+        assert any(
+            "help" in step.lower() or "syntax" in step.lower() for step in error.recovery_steps
+        )
 
     def test_format_error_includes_recovery_steps(self):
         """Test format_error() includes recovery steps.
@@ -126,11 +122,7 @@ class TestSyncError:
     def test_sync_error_exception_message(self):
         """Test that SyncError can be raised and caught with correct message."""
         with pytest.raises(SyncError) as exc_info:
-            raise SyncError(
-                "Test exception",
-                ErrorCategory.FILE_SYSTEM,
-                file_path="/test/path"
-            )
+            raise SyncError("Test exception", ErrorCategory.FILE_SYSTEM, file_path="/test/path")
 
         assert str(exc_info.value) == "Test exception"
         assert exc_info.value.file_path == "/test/path"
@@ -139,15 +131,12 @@ class TestSyncError:
         """Test that all error categories generate recovery steps."""
         for category in ErrorCategory:
             error = SyncError(f"Error for {category.value}", category)
-            assert len(error.recovery_steps) > 0, \
-                f"Category {category} should have recovery steps"
+            assert len(error.recovery_steps) > 0, f"Category {category} should have recovery steps"
 
     def test_format_error_complete_output(self):
         """Test complete format_error() output structure."""
         error = SyncError(
-            "Failed to sync file",
-            ErrorCategory.FILE_SYSTEM,
-            file_path=".cursor/settings.json"
+            "Failed to sync file", ErrorCategory.FILE_SYSTEM, file_path=".cursor/settings.json"
         )
         formatted = error.format_error()
 

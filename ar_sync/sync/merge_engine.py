@@ -38,43 +38,143 @@ class MergeEngine:
     CONFLICT_END = ">>>>>>>"
 
     # Common text file extensions (explicitly text)
-    TEXT_EXTENSIONS = frozenset({
-        # Source code
-        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.h', '.hpp',
-        '.cs', '.go', '.rs', '.rb', '.php', '.swift', '.kt', '.scala',
-        # Markup/Config
-        '.md', '.markdown', '.txt', '.json', '.yaml', '.yml', '.toml', '.ini',
-        '.xml', '.html', '.htm', '.css', '.scss', '.sass', '.less',
-        # Shell/Scripts
-        '.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd',
-        # Documentation
-        '.rst', '.tex', '.adoc', '.org',
-        # Other text
-        '.csv', '.tsv', '.log', '.sql', '.env', '.gitignore', '.gitattributes',
-    })
+    TEXT_EXTENSIONS = frozenset(
+        {
+            # Source code
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".c",
+            ".cpp",
+            ".h",
+            ".hpp",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".scala",
+            # Markup/Config
+            ".md",
+            ".markdown",
+            ".txt",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".ini",
+            ".xml",
+            ".html",
+            ".htm",
+            ".css",
+            ".scss",
+            ".sass",
+            ".less",
+            # Shell/Scripts
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".fish",
+            ".ps1",
+            ".bat",
+            ".cmd",
+            # Documentation
+            ".rst",
+            ".tex",
+            ".adoc",
+            ".org",
+            # Other text
+            ".csv",
+            ".tsv",
+            ".log",
+            ".sql",
+            ".env",
+            ".gitignore",
+            ".gitattributes",
+        }
+    )
 
     # Common binary file extensions
-    BINARY_EXTENSIONS = frozenset({
-        # Images
-        '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
-        '.tiff', '.tif', '.psd', '.ai', '.eps',
-        # Audio/Video
-        '.mp3', '.mp4', '.wav', '.avi', '.mov', '.mkv', '.flac', '.ogg',
-        '.m4a', '.m4v', '.webm',
-        # Archives
-        '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.xz', '.zst',
-        # Documents
-        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-        # Executables/Libraries
-        '.exe', '.dll', '.so', '.dylib', '.a', '.o', '.pyc', '.pyo',
-        '.class', '.jar', '.war', '.ear',
-        # Fonts
-        '.ttf', '.otf', '.woff', '.woff2', '.eot',
-        # Database
-        '.db', '.sqlite', '.sqlite3',
-        # Other
-        '.bin', '.dat', '.iso', '.dmg',
-    })
+    BINARY_EXTENSIONS = frozenset(
+        {
+            # Images
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".bmp",
+            ".ico",
+            ".webp",
+            ".svg",
+            ".tiff",
+            ".tif",
+            ".psd",
+            ".ai",
+            ".eps",
+            # Audio/Video
+            ".mp3",
+            ".mp4",
+            ".wav",
+            ".avi",
+            ".mov",
+            ".mkv",
+            ".flac",
+            ".ogg",
+            ".m4a",
+            ".m4v",
+            ".webm",
+            # Archives
+            ".zip",
+            ".tar",
+            ".gz",
+            ".bz2",
+            ".7z",
+            ".rar",
+            ".xz",
+            ".zst",
+            # Documents
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            # Executables/Libraries
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".a",
+            ".o",
+            ".pyc",
+            ".pyo",
+            ".class",
+            ".jar",
+            ".war",
+            ".ear",
+            # Fonts
+            ".ttf",
+            ".otf",
+            ".woff",
+            ".woff2",
+            ".eot",
+            # Database
+            ".db",
+            ".sqlite",
+            ".sqlite3",
+            # Other
+            ".bin",
+            ".dat",
+            ".iso",
+            ".dmg",
+        }
+    )
 
     def merge_files(
         self,
@@ -129,9 +229,7 @@ class MergeEngine:
         Returns:
             MergeResult with merge outcome
         """
-        exit_code, merged_content = self._run_git_merge_file(
-            base_path, local_path, remote_path
-        )
+        exit_code, merged_content = self._run_git_merge_file(base_path, local_path, remote_path)
 
         # git merge-file exit codes:
         # 0: merge successful, no conflicts
@@ -174,7 +272,7 @@ class MergeEngine:
         Returns:
             MergeResult with merge outcome
         """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.base', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".base", delete=False) as f:
             empty_base = Path(f.name)
             f.write("")  # Empty base file
 
@@ -211,13 +309,10 @@ class MergeEngine:
         """
         # Create a temporary copy of local file since git merge-file modifies in-place
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.local',
-            delete=False,
-            encoding='utf-8'
+            mode="w", suffix=".local", delete=False, encoding="utf-8"
         ) as f:
             local_copy = Path(f.name)
-            f.write(local.read_text(encoding='utf-8'))
+            f.write(local.read_text(encoding="utf-8"))
 
         try:
             # Run git merge-file
@@ -225,7 +320,8 @@ class MergeEngine:
             # --diff3: show base version in conflicts (more informative)
             result = subprocess.run(
                 [
-                    "git", "merge-file",
+                    "git",
+                    "merge-file",
                     "-p",  # Print to stdout
                     "--diff3",  # Include base in conflict markers
                     str(local_copy),
@@ -273,7 +369,7 @@ class MergeEngine:
         if not content:
             return []
 
-        lines = content.split('\n')
+        lines = content.split("\n")
         conflict_markers: list[tuple[int, int]] = []
 
         start_line: int | None = None
@@ -315,7 +411,7 @@ class MergeEngine:
         try:
             # Read first 8KB to check for binary content
             chunk_size = 8192
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 chunk = f.read(chunk_size)
 
             # Empty file is not binary
@@ -323,12 +419,12 @@ class MergeEngine:
                 return False
 
             # Check for null bytes (strong indicator of binary)
-            if b'\x00' in chunk:
+            if b"\x00" in chunk:
                 return True
 
             # Try to decode as UTF-8
             try:
-                chunk.decode('utf-8')
+                chunk.decode("utf-8")
                 return False
             except UnicodeDecodeError:
                 return True

@@ -13,18 +13,23 @@ class TestGitBackendVerifyRemoteAccess:
 
     def test_verify_remote_access_success(self):
         """Test that verify_remote_access returns True when remote is accessible."""
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
             result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert result is True
             mock_run.assert_called_once()
             call_args = mock_run.call_args
-            assert call_args[0][0] == ["git", "ls-remote", "--exit-code", "git@github.com:user/repo.git"]
+            assert call_args[0][0] == [
+                "git",
+                "ls-remote",
+                "--exit-code",
+                "git@github.com:user/repo.git",
+            ]
             assert call_args[1]["timeout"] == 10
 
     def test_verify_remote_access_failure(self):
         """Test that verify_remote_access returns False when remote is not accessible."""
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 128
             result = GitBackend.verify_remote_access("git@github.com:user/nonexistent.git")
             assert result is False
@@ -32,7 +37,8 @@ class TestGitBackendVerifyRemoteAccess:
     def test_verify_remote_access_timeout(self):
         """Test that verify_remote_access returns False on timeout."""
         import subprocess
-        with patch('subprocess.run') as mock_run:
+
+        with patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=10)
             result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert result is False
@@ -40,14 +46,15 @@ class TestGitBackendVerifyRemoteAccess:
     def test_verify_remote_access_subprocess_error(self):
         """Test that verify_remote_access returns False on subprocess error."""
         import subprocess
-        with patch('subprocess.run') as mock_run:
+
+        with patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.SubprocessError("Command failed")
             result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert result is False
 
     def test_verify_remote_access_os_error(self):
         """Test that verify_remote_access returns False when git is not found."""
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.side_effect = OSError("git not found")
             result = GitBackend.verify_remote_access("git@github.com:user/repo.git")
             assert result is False
@@ -92,7 +99,7 @@ class TestGitBackendInitialize:
         backend = GitBackend(store_path, repo_url)
         backend.initialize()
 
-        assert 'origin' in [remote.name for remote in backend.repo.remotes]
+        assert "origin" in [remote.name for remote in backend.repo.remotes]
         assert backend.repo.remotes.origin.url == repo_url
 
     def test_initialize_does_not_duplicate_remote(self, tmp_path):
@@ -103,13 +110,13 @@ class TestGitBackendInitialize:
 
         # Create repo with remote
         repo = Repo.init(store_path)
-        repo.create_remote('origin', repo_url)
+        repo.create_remote("origin", repo_url)
 
         backend = GitBackend(store_path, repo_url)
         backend.initialize()
 
         # Should have exactly one origin remote
-        origin_remotes = [r for r in backend.repo.remotes if r.name == 'origin']
+        origin_remotes = [r for r in backend.repo.remotes if r.name == "origin"]
         assert len(origin_remotes) == 1
 
 
@@ -210,28 +217,62 @@ class TestGitBackendPull:
         with pytest.raises(RuntimeError, match="Failed to pull from remote"):
             backend.pull()
 
-
-class TestGitBackendSync:
-    """Tests for GitBackend.sync()."""
-
-    def test_sync_pull_only(self, tmp_path):
-        """Test that sync with pull_only=True only pulls."""
+    def test_pull_with_unstaged_changes_auto_commits(self, tmp_path):
+        """Test that pull automatically commits unstaged changes before pulling."""
         store_path = tmp_path / "store"
         repo_url = "git@github.com:user/repo.git"
 
         backend = GitBackend(store_path, repo_url)
         backend.initialize()
 
-        # Create a file (should not be committed)
+        # Create a test file and commit it
+        test_file = store_path / "test.txt"
+        test_file.write_text("test content")
+        backend.repo.index.add([str(test_file)])
+        backend.repo.index.commit("Initial commit")
+
+        # Modify the file to create unstaged changes
+        test_file.write_text("modified content")
+
+        # Verify there are unstaged changes
+        assert backend.repo.is_dirty(untracked_files=False)
+
+        # Pull should auto-commit the changes (will fail on actual pull, but commit should happen)
+        try:
+            backend.pull()
+        except RuntimeError:
+            # Pull will fail because there's no real remote, but that's OK
+            pass
+
+        # Verify the changes were auto-committed
+        assert not backend.repo.is_dirty(untracked_files=False)
+        assert "Auto-commit before sync" in backend.repo.head.commit.message
+
+
+class TestGitBackendSync:
+    """Tests for GitBackend.sync()."""
+
+    def test_sync_pull_only(self, tmp_path):
+        """Test that sync with pull_only=True only pulls (and auto-commits if needed)."""
+        store_path = tmp_path / "store"
+        repo_url = "git@github.com:user/repo.git"
+
+        backend = GitBackend(store_path, repo_url)
+        backend.initialize()
+
+        # Create a file (will be auto-committed during pull)
         test_file = store_path / "test.txt"
         test_file.write_text("test content")
 
-        # Sync with pull_only (will fail on pull, but should not commit)
+        # Sync with pull_only (will auto-commit, then fail on pull)
         with pytest.raises(RuntimeError):
             backend.sync(pull_only=True)
 
-        # Verify no commits were made (repo is still dirty)
-        assert backend.repo.is_dirty(untracked_files=True)
+        # Verify the file was auto-committed (repo is clean now)
+        assert not backend.repo.is_dirty(untracked_files=True)
+        # Verify a commit was made
+        assert len(list(backend.repo.iter_commits())) > 0
+        assert "Auto-commit before sync" in backend.repo.head.commit.message
 
     def test_sync_push_only(self, tmp_path):
         """Test that sync with push_only=True only pushes."""

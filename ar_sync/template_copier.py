@@ -7,6 +7,7 @@ Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 6.3
 """
 
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 from rich.console import Console
@@ -15,6 +16,7 @@ from rich.prompt import Confirm
 from rich.table import Table
 
 from ar_sync.errors import ARSyncError, ErrorCategory
+from ar_sync.template_manager import TemplateManager
 from ar_sync.template_models import CopyResult, TemplateMetadata
 
 
@@ -30,7 +32,7 @@ class TemplateCopier:
         console: Rich Console 인스턴스
     """
 
-    DEFAULT_OUTPUT_DIR = ".claude"
+    DEFAULT_OUTPUT_DIR = ".prompts"
 
     def __init__(
         self,
@@ -57,6 +59,35 @@ class TemplateCopier:
         """
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def expand_full_set(
+        self,
+        template: TemplateMetadata,
+        manager: TemplateManager,
+    ) -> list[TemplateMetadata]:
+        """Expand full-set template to include all individual agents.
+
+        When "Full Agent Set" template is selected, this method returns
+        all individual agent templates from the agents/ directory,
+        excluding the full-set template itself.
+
+        Args:
+            template: The full-set template metadata
+            manager: TemplateManager instance for scanning templates
+
+        Returns:
+            List of all individual agent templates
+        """
+        if template.name != "Full Agent Set":
+            return [template]
+
+        # Get all agents from manager
+        all_agents = manager.get_templates_by_category("agents")
+
+        # Filter out the full-set template itself
+        individual_agents = [t for t in all_agents if t.name != "Full Agent Set"]
+
+        return individual_agents
 
     def _get_target_path(self, template: TemplateMetadata) -> Path:
         """템플릿의 대상 경로를 계산.
@@ -133,7 +164,11 @@ class TemplateCopier:
             table.add_row(
                 template.category,
                 template.display_name,
-                str(target_path.relative_to(Path.cwd()) if target_path.is_relative_to(Path.cwd()) else target_path),
+                str(
+                    target_path.relative_to(Path.cwd())
+                    if target_path.is_relative_to(Path.cwd())
+                    else target_path
+                ),
             )
 
         self.console.print(table)
@@ -253,6 +288,28 @@ class TemplateCopier:
         if not templates:
             return CopyResult()
 
+        # Expand full-set templates
+        expanded_templates: list[TemplateMetadata] = []
+        manager = TemplateManager()
+
+        for template in templates:
+            if template.name == "Full Agent Set":
+                # Expand full-set to all individual agents
+                expanded = self.expand_full_set(template, manager)
+                expanded_templates.extend(expanded)
+            else:
+                expanded_templates.append(template)
+
+        # Remove duplicates while preserving order
+        seen: set[str] = set()
+        unique_templates: list[TemplateMetadata] = []
+
+        for template in expanded_templates:
+            key = f"{template.category}/{template.name}"
+            if key not in seen:
+                seen.add(key)
+                unique_templates.append(template)
+
         # Requirement 3.3: 대상 디렉토리 자동 생성
         self._ensure_output_dir()
 
@@ -260,7 +317,7 @@ class TemplateCopier:
 
         # 충돌 확인 및 해결 (force가 아닌 경우)
         if not force:
-            conflicts = self.check_conflicts(templates)
+            conflicts = self.check_conflicts(unique_templates)
             if conflicts:
                 overwrite, skip = self.resolve_conflicts(conflicts)
 
@@ -270,14 +327,14 @@ class TemplateCopier:
                     result.skipped.append(target_path)
 
                 # 덮어쓸 템플릿은 force=True로 복사
-                non_conflict_templates = [t for t in templates if t not in conflicts]
+                non_conflict_templates = [t for t in unique_templates if t not in conflicts]
                 templates_to_copy = non_conflict_templates + overwrite
                 force_for_overwrite = {t.path: True for t in overwrite}
             else:
-                templates_to_copy = templates
+                templates_to_copy = unique_templates
                 force_for_overwrite = {}
         else:
-            templates_to_copy = templates
+            templates_to_copy = unique_templates
             force_for_overwrite = {}
 
         # Requirement 6.3: Rich Progress로 진행 상황 표시
@@ -337,20 +394,26 @@ class TemplateCopier:
         if result.success:
             self.console.print(f"[green]✓ {len(result.success)}개 템플릿 복사 완료:[/green]")
             for path in result.success:
-                relative_path = path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                relative_path = (
+                    path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                )
                 self.console.print(f"  [dim]→[/dim] {relative_path}")
 
         if result.skipped:
             self.console.print(f"\n[yellow]⚠ {len(result.skipped)}개 템플릿 건너뜀:[/yellow]")
             for path in result.skipped:
-                relative_path = path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                relative_path = (
+                    path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                )
                 self.console.print(f"  [dim]→[/dim] {relative_path}")
 
         if result.failed:
             # Requirement 3.7: 오류 메시지 표시
             self.console.print(f"\n[red]✗ {len(result.failed)}개 템플릿 복사 실패:[/red]")
             for path, error in result.failed:
-                relative_path = path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                relative_path = (
+                    path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path
+                )
                 self.console.print(f"  [dim]→[/dim] {relative_path}: {error}")
 
         # 요약
@@ -361,3 +424,115 @@ class TemplateCopier:
             f"[yellow]{len(result.skipped)}개 건너뜀[/yellow], "
             f"[red]{len(result.failed)}개 실패[/red][/bold]"
         )
+
+    def generate_agents_md(
+        self,
+        selected: list[TemplateMetadata],
+        project_dir: Path | None = None,
+    ) -> None:
+        """Generate AGENTS.md from template with selected items.
+
+        Args:
+            selected: Selected templates
+            project_dir: Project directory (defaults to current directory)
+        """
+        if project_dir is None:
+            project_dir = Path.cwd()
+
+        # Read template
+        template_path = Path(__file__).parent.parent / "templates" / "AGENTS.md.template"
+
+        if not template_path.exists():
+            self.console.print("[yellow]Warning: AGENTS.md.template not found[/yellow]")
+            return
+
+        template_content = template_path.read_text(encoding="utf-8")
+
+        # Group by category
+        by_category: dict[str, list[TemplateMetadata]] = {
+            "agents": [],
+            "rules": [],
+            "skills": [],
+        }
+
+        for template in selected:
+            if template.category in by_category:
+                by_category[template.category].append(template)
+
+        # Generate lists
+        agents_list = self._format_template_list(by_category["agents"])
+        rules_list = self._format_template_list(by_category["rules"])
+        skills_list = self._format_template_list(by_category["skills"])
+
+        # Replace placeholders
+        content = template_content.replace("{agents_list}", agents_list)
+        content = content.replace("{rules_list}", rules_list)
+        content = content.replace("{skills_list}", skills_list)
+        content = content.replace("{timestamp}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        # Write AGENTS.md
+        agents_md_path = project_dir / "AGENTS.md"
+        agents_md_path.write_text(content, encoding="utf-8")
+
+        self.console.print("[green]✓ Generated AGENTS.md[/green]")
+
+    def _format_template_list(self, templates: list[TemplateMetadata]) -> str:
+        """Format template list for AGENTS.md.
+
+        Args:
+            templates: List of templates
+
+        Returns:
+            Formatted markdown list
+        """
+        if not templates:
+            return "*No templates selected*"
+
+        lines = []
+        for template in sorted(templates, key=lambda t: t.name):
+            desc = template.short_description or template.description or "No description"
+            lines.append(f"- **{template.display_name}**: {desc}")
+
+        return "\n".join(lines)
+
+    def update_gitignore(
+        self,
+        project_dir: Path | None = None,
+        add_prompts: bool = False,
+    ) -> None:
+        """Add .prompts/ to .gitignore if requested.
+
+        Args:
+            project_dir: Project directory (defaults to current directory)
+            add_prompts: If True, add .prompts/ to .gitignore
+        """
+        if not add_prompts:
+            return
+
+        if project_dir is None:
+            project_dir = Path.cwd()
+
+        gitignore_path = project_dir / ".gitignore"
+
+        # Read existing .gitignore
+        if gitignore_path.exists():
+            content = gitignore_path.read_text(encoding="utf-8")
+            lines = content.splitlines()
+        else:
+            lines = []
+
+        # Check if .prompts/ already exists
+        if any(line.strip() in [".prompts/", ".prompts", "AGENTS.md"] for line in lines):
+            self.console.print("[dim].prompts/ already in .gitignore[/dim]")
+            return
+
+        # Add .prompts/ and AGENTS.md
+        lines.append("")
+        lines.append("# AI IDE configuration (ar-sync)")
+        lines.append(".prompts/")
+        lines.append("AGENTS.md")
+
+        # Write back
+        gitignore_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        self.console.print("[green]✓ Added .prompts/ to .gitignore[/green]")

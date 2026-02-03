@@ -40,7 +40,7 @@ class TemplateManager:
         if templates_dir is None:
             # 패키지 내장 템플릿 디렉토리 사용
             package_dir = Path(__file__).parent.parent
-            templates_dir = package_dir / "templates"
+            templates_dir = package_dir / "templates" / "prompts"
 
         self.templates_dir = templates_dir
 
@@ -50,7 +50,7 @@ class TemplateManager:
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "Ensure ar-sync is properly installed",
-                    "Check if templates/ directory exists in the package",
+                    "Check if templates/prompts/ directory exists in the package",
                 ],
             )
 
@@ -92,9 +92,7 @@ class TemplateManager:
 
         return metadata, body
 
-    def _load_template_metadata(
-        self, path: Path, category: str
-    ) -> TemplateMetadata | None:
+    def _load_template_metadata(self, path: Path, category: str) -> TemplateMetadata | None:
         """단일 템플릿의 메타데이터를 로드.
 
         Args:
@@ -168,9 +166,7 @@ class TemplateManager:
             카테고리를 키로, TemplateMetadata 리스트를 값으로 하는 dict.
             예: {'agents': [...], 'rules': [...], 'skills': [...]}
         """
-        result: dict[str, list[TemplateMetadata]] = {
-            category: [] for category in self.CATEGORIES
-        }
+        result: dict[str, list[TemplateMetadata]] = {category: [] for category in self.CATEGORIES}
 
         for category in self.CATEGORIES:
             category_dir = self.templates_dir / category
@@ -192,6 +188,13 @@ class TemplateManager:
                         metadata = self._load_template_metadata(item, category)
                         if metadata:
                             result[category].append(metadata)
+                    elif item.is_dir() and not item.name.startswith("."):
+                        # agents/full-set/ 같은 디렉토리도 처리
+                        for subitem in item.iterdir():
+                            if subitem.is_file() and subitem.suffix == ".md":
+                                metadata = self._load_template_metadata(subitem, category)
+                                if metadata:
+                                    result[category].append(metadata)
 
         # 각 카테고리 내에서 이름순 정렬
         for category in result:
@@ -215,9 +218,7 @@ class TemplateManager:
         all_templates = self.scan_templates()
         return all_templates.get(category, [])
 
-    def search_templates(
-        self, query: str, category: str | None = None
-    ) -> list[TemplateMetadata]:
+    def search_templates(self, query: str, category: str | None = None) -> list[TemplateMetadata]:
         """이름 또는 설명에서 검색어와 일치하는 템플릿 반환.
 
         대소문자를 구분하지 않고 검색합니다.
@@ -268,3 +269,56 @@ class TemplateManager:
                 return template
 
         return None
+
+    def get_template_version(self, template: TemplateMetadata) -> str:
+        """Get version from template frontmatter.
+
+        Args:
+            template: Template metadata
+
+        Returns:
+            Version string (e.g., "1.0.0"). Returns "0.0.0" if not found.
+        """
+        try:
+            if template.is_directory:
+                # For skills, read from SKILL.md or README.md
+                skill_file = template.path / "SKILL.md"
+                readme_file = template.path / "README.md"
+
+                if skill_file.exists():
+                    content = skill_file.read_text(encoding="utf-8")
+                elif readme_file.exists():
+                    content = readme_file.read_text(encoding="utf-8")
+                else:
+                    return "0.0.0"
+            else:
+                # For files, read directly
+                content = template.path.read_text(encoding="utf-8")
+
+            metadata, _ = self.parse_frontmatter(content)
+            return metadata.get("version", "0.0.0")
+
+        except (OSError, UnicodeDecodeError):
+            return "0.0.0"
+
+    def get_all_versions(self) -> dict[str, str]:
+        """Get all template versions as dict.
+
+        Returns:
+            Dict mapping template path to version.
+            Format: "category/name" -> "version"
+            Example: {"agents/architect.md": "1.0.0"}
+        """
+        all_templates = self.scan_templates()
+        versions: dict[str, str] = {}
+
+        for category, templates in all_templates.items():
+            for template in templates:
+                if template.is_directory:
+                    key = f"{category}/{template.name}"
+                else:
+                    key = f"{category}/{template.name}.md"
+
+                versions[key] = self.get_template_version(template)
+
+        return versions

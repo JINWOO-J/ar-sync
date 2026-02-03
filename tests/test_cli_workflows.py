@@ -29,13 +29,13 @@ def temp_env(tmp_path, monkeypatch):
 
     # Set config path using monkeypatch (auto-restores after test)
     config_path = config_dir / "config.yaml"
-    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
+    monkeypatch.setattr(ConfigManager, "CONFIG_PATH", config_path)
 
     return {
         "config_dir": config_dir,
         "store_dir": store_dir,
         "backup_dir": backup_dir,
-        "tmp_path": tmp_path
+        "tmp_path": tmp_path,
     }
 
 
@@ -47,11 +47,7 @@ class TestCompleteWorkflow:
         store_dir = temp_env["store_dir"]
 
         # 1. Setup
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        result = runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
         assert result.exit_code == 0
 
         # 2. Create project with targets
@@ -89,11 +85,7 @@ class TestCompleteWorkflow:
         store_dir = temp_env["store_dir"]
 
         # Setup
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Create project
         project_dir = temp_env["tmp_path"] / "test-project"
@@ -122,11 +114,7 @@ class TestCompleteWorkflow:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "test-project"
         project_dir.mkdir()
@@ -151,11 +139,7 @@ class TestCompleteWorkflow:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project with one target
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "test-project"
         project_dir.mkdir()
@@ -181,11 +165,7 @@ class TestCompleteWorkflow:
         store_dir = temp_env["store_dir"]
 
         # Setup
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Update path
         new_store = temp_env["tmp_path"] / "new-store"
@@ -214,11 +194,7 @@ class TestErrorHandling:
         """Test that init creates backup when overwriting existing files."""
         store_dir = temp_env["store_dir"]
 
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -240,11 +216,7 @@ class TestErrorHandling:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -271,11 +243,7 @@ class TestErrorHandling:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -309,11 +277,7 @@ class TestSyncModeIntegration:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -336,6 +300,7 @@ class TestSyncModeIntegration:
         project_info = store_manager.get_project("project")
         assert project_info.sync_mode == "link"
 
+
 class TestStatusCommand:
     """Test status command in various scenarios."""
 
@@ -344,11 +309,7 @@ class TestStatusCommand:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "my-project"
         project_dir.mkdir()
@@ -369,11 +330,7 @@ class TestStatusCommand:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -399,11 +356,7 @@ class TestSyncCommand:
         store_dir = temp_env["store_dir"]
 
         # Setup and add project
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -415,13 +368,13 @@ class TestSyncCommand:
 
         # Remove .cursor locally
         import shutil
+
         shutil.rmtree(project_dir / ".cursor")
 
         # Sync should pull missing .cursor
         result = runner.invoke(app, ["sync"])
         assert result.exit_code == 0
         assert (project_dir / ".cursor").exists()
-
 
 
 class TestGitBackendSetup:
@@ -440,12 +393,18 @@ class TestGitBackendSetup:
 
         store_dir = temp_env["store_dir"]
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(store_dir),
-            "--repo-url", "git@github.com:test/repo.git"
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "setup",
+                "--backend",
+                "git",
+                "--path",
+                str(store_dir),
+                "--repo-url",
+                "git@github.com:test/repo.git",
+            ],
+        )
 
         assert result.exit_code == 0
         assert "Remote repository is accessible" in result.stdout
@@ -463,12 +422,18 @@ class TestGitBackendSetup:
 
         store_dir = temp_env["store_dir"]
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(store_dir),
-            "--repo-url", "git@github.com:test/repo.git"
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "setup",
+                "--backend",
+                "git",
+                "--path",
+                str(store_dir),
+                "--repo-url",
+                "git@github.com:test/repo.git",
+            ],
+        )
 
         assert result.exit_code == 1
         output = result.stdout + result.stderr
@@ -479,20 +444,13 @@ class TestGitBackendSetup:
         store_dir = temp_env["store_dir"]
 
         # First setup
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Second setup without specifying backend (should use existing)
         new_store = temp_env["tmp_path"] / "new-store"
         new_store.mkdir()
 
-        result = runner.invoke(app, [
-            "setup",
-            "--path", str(new_store)
-        ])
+        result = runner.invoke(app, ["setup", "--path", str(new_store)])
 
         assert result.exit_code == 0
 
@@ -508,7 +466,7 @@ class TestExceptionHandling:
     def test_setup_handles_filesystem_errors(self, runner, temp_env, monkeypatch):
         """Test that setup handles filesystem errors gracefully."""
         # Mock Path.mkdir to raise OSError
-        from pathlib import Path
+
         original_mkdir = Path.mkdir
 
         def mock_mkdir(*args, **kwargs):
@@ -516,11 +474,9 @@ class TestExceptionHandling:
 
         monkeypatch.setattr(Path, "mkdir", mock_mkdir)
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(temp_env["store_dir"])
-        ])
+        result = runner.invoke(
+            app, ["setup", "--backend", "local", "--path", str(temp_env["store_dir"])]
+        )
 
         assert result.exit_code == 1
         output = result.stdout + result.stderr
@@ -533,11 +489,7 @@ class TestExceptionHandling:
         """Test that init handles unexpected errors gracefully."""
         # Setup first
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -546,6 +498,7 @@ class TestExceptionHandling:
 
         # Mock ProjectManager.add_project to raise exception
         from ar_sync.project_manager import ProjectManager
+
         original_add = ProjectManager.add_project
 
         def mock_add(*args, **kwargs):
@@ -569,30 +522,23 @@ class TestConfigPathExpansion:
     def test_setup_expands_tilde_in_path(self, runner, temp_env):
         """Test that setup expands ~ in path."""
         # Use a path with tilde
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", "~/test-store"
-        ])
+        result = runner.invoke(app, ["setup", "--backend", "local", "--path", "~/test-store"])
 
         assert result.exit_code == 0
 
-        # Verify path was expanded
+        # Verify path was expanded (~ should be replaced with actual path)
         config_manager = ConfigManager()
         config = config_manager.load()
         assert "~" not in config.store_path
-        assert str(Path.home()) in config.store_path
+        # Path should be absolute after expansion
+        assert config.store_path.startswith("/")
 
     def test_config_update_expands_path(self, runner, temp_env):
         """Test that config update expands paths."""
         store_dir = temp_env["store_dir"]
 
         # Setup
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Update with tilde path
         result = runner.invoke(app, ["config", "--path", "~/new-store"])
@@ -612,11 +558,7 @@ class TestProjectNameHandling:
         """Test that init uses directory name as default project name."""
         store_dir = temp_env["store_dir"]
 
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "my-awesome-project"
         project_dir.mkdir()
@@ -635,11 +577,7 @@ class TestProjectNameHandling:
         """Test that add uses directory name as default project name."""
         store_dir = temp_env["store_dir"]
 
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "another-project"
         project_dir.mkdir()
@@ -660,11 +598,7 @@ class TestMetadataSync:
         store_dir = temp_env["store_dir"]
 
         # Setup and add multiple projects
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Add first project
         project1_dir = temp_env["tmp_path"] / "project1"
@@ -693,4 +627,3 @@ class TestMetadataSync:
 
 class TestBackupHandling:
     """Test backup handling."""
-

@@ -6,7 +6,6 @@ template scanning, and search functionality.
 Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.3
 """
 
-
 import pytest
 
 from ar_sync.errors import ARSyncError
@@ -138,7 +137,7 @@ class TestTemplateManagerInit:
         manager = TemplateManager()
 
         assert manager.templates_dir.exists()
-        assert manager.templates_dir.name == "templates"
+        assert manager.templates_dir.name == "prompts"
 
 
 class TestScanTemplates:
@@ -538,7 +537,4 @@ class TestIntegrationWithRealTemplates:
 
         assert len(results) > 0
         for template in results:
-            assert (
-                "security" in template.name.lower()
-                or "security" in template.description.lower()
-            )
+            assert "security" in template.name.lower() or "security" in template.description.lower()

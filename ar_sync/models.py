@@ -26,6 +26,7 @@ class LocalConfig:
         backup_originals: Whether to backup existing files before linking
         backup_dir: Directory path for storing backups
     """
+
     version: int
     backend: str
     store_path: str
@@ -44,6 +45,7 @@ class MachineInfo:
         hostname: Machine hostname identifier
         linked_at: ISO 8601 timestamp when machine linked to project
     """
+
     hostname: str
     linked_at: str
 
@@ -58,6 +60,7 @@ class ProjectInfo:
         machines: List of machines that have linked to this project
         sync_mode: Synchronization mode ("copy" or "link")
     """
+
     added_at: str
     targets: list[str]
     machines: list[MachineInfo] = field(default_factory=list)
@@ -75,6 +78,7 @@ class StoreMetadata:
         created_at: ISO 8601 timestamp when store was created
         projects: Dictionary mapping project names to ProjectInfo
     """
+
     version: int
     created_at: str
     projects: dict[str, ProjectInfo] = field(default_factory=dict)

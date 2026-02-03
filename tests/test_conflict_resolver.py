@@ -18,17 +18,15 @@ Requirements tested:
 """
 
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from rich.console import Console
 
 from ar_sync.sync.conflict_resolver import ConflictResolver
-from ar_sync.sync.merge_engine import MergeEngine
 from ar_sync.sync.models import (
     ChangeType,
     FileChange,
-    MergeResult,
     Resolution,
     ResolutionStrategy,
     ResolvedChange,
@@ -74,8 +72,8 @@ def binary_change(tmp_path):
     remote_path = tmp_path / "store" / "image.png"
     local_path.parent.mkdir(parents=True, exist_ok=True)
     remote_path.parent.mkdir(parents=True, exist_ok=True)
-    local_path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
-    remote_path.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x01' * 100)
+    local_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+    remote_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x01" * 100)
 
     return FileChange(
         path="image.png",
@@ -111,7 +109,6 @@ class TestResolveAutomatic:
         assert isinstance(result, ResolvedChange)
         assert result.file_change is sample_change
         assert result.resolution == Resolution.USE_LOCAL
-        assert result.merged_content is None
 
     def test_resolve_automatic_remote_strategy(self, resolver, sample_change):
         """Requirement 6.2: --remote option prefers Store files."""
@@ -120,7 +117,6 @@ class TestResolveAutomatic:
         assert isinstance(result, ResolvedChange)
         assert result.file_change is sample_change
         assert result.resolution == Resolution.USE_REMOTE
-        assert result.merged_content is None
 
     def test_resolve_automatic_interactive_raises_error(self, resolver, sample_change):
         """Test that INTERACTIVE strategy raises ValueError."""
@@ -160,8 +156,10 @@ class TestDisplayConflict:
         resolver.display_conflict(sample_change)
 
         output = console.file.getvalue()
-        # Should show some indication of the change type
-        assert "modified" in output.lower() or "Type" in output
+        # Should show some indication of the change type (Korean or English)
+        assert (
+            "수정" in output or "modified" in output.lower() or "상태" in output or "Type" in output
+        )
 
     def test_display_conflict_shows_file_locations(self, resolver, sample_change, console):
         """Test that file locations are displayed."""
@@ -211,7 +209,9 @@ class TestDisplayConflictsSummary:
         output = console.file.getvalue()
         assert "No conflicts" in output or "no conflict" in output.lower()
 
-    def test_display_conflicts_summary_shows_binary_indicator(self, resolver, binary_change, console):
+    def test_display_conflicts_summary_shows_binary_indicator(
+        self, resolver, binary_change, console
+    ):
         """Test that binary files are indicated in summary."""
         resolver.display_conflicts_summary([binary_change])
 
@@ -226,7 +226,7 @@ class TestPromptResolution:
         """Requirement 5.1: User can select [l]ocal."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', return_value='l'):
+        with patch.object(console, "input", return_value="l"):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_LOCAL
@@ -235,48 +235,29 @@ class TestPromptResolution:
         """Requirement 5.1: User can select [r]emote."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', return_value='r'):
+        with patch.object(console, "input", return_value="r"):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_REMOTE
 
-    def test_prompt_resolution_merge_choice(self, sample_change, console):
-        """Requirement 5.1: User can select [m]erge."""
-        resolver = ConflictResolver(console=console)
-
-        with patch.object(console, 'input', return_value='m'):
-            result = resolver.prompt_resolution(sample_change)
-
-        assert result == Resolution.MERGE
 
     def test_prompt_resolution_skip_choice(self, sample_change, console):
         """Requirement 5.1: User can select [s]kip."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', return_value='s'):
+        with patch.object(console, "input", return_value="s"):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.SKIP
 
-    def test_prompt_resolution_binary_no_merge(self, binary_change, console):
-        """Requirement 5.7: Merge option disabled for binary files."""
-        resolver = ConflictResolver(console=console)
-
-        # First try 'm', then 'l' when merge is rejected
-        inputs = iter(['m', 'l'])
-        with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
-            result = resolver.prompt_resolution(binary_change)
-
-        # Should end up with local since merge is not available
-        assert result == Resolution.USE_LOCAL
 
     def test_prompt_resolution_invalid_then_valid(self, sample_change, console):
         """Test that invalid input prompts again."""
         resolver = ConflictResolver(console=console)
 
         # First invalid, then valid
-        inputs = iter(['x', 'l'])
-        with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
+        inputs = iter(["x", "l"])
+        with patch.object(console, "input", side_effect=lambda _: next(inputs)):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_LOCAL
@@ -285,7 +266,7 @@ class TestPromptResolution:
         """Test that Ctrl+C results in skip."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', side_effect=KeyboardInterrupt):
+        with patch.object(console, "input", side_effect=KeyboardInterrupt):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.SKIP
@@ -294,7 +275,7 @@ class TestPromptResolution:
         """Test that EOF results in skip."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', side_effect=EOFError):
+        with patch.object(console, "input", side_effect=EOFError):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.SKIP
@@ -303,7 +284,7 @@ class TestPromptResolution:
         """Test that uppercase input is accepted."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', return_value='L'):
+        with patch.object(console, "input", return_value="L"):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_LOCAL
@@ -312,7 +293,7 @@ class TestPromptResolution:
         """Test that full word input uses first character."""
         resolver = ConflictResolver(console=console)
 
-        with patch.object(console, 'input', return_value='local'):
+        with patch.object(console, "input", return_value="local"):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_LOCAL
@@ -324,85 +305,37 @@ class TestResolveInteractive:
     def test_resolve_interactive_local(self, sample_change, console):
         """Requirement 5.2: Local selection returns USE_LOCAL resolution."""
         resolver = ConflictResolver(console=console)
-        merge_engine = MergeEngine()
-
-        with patch.object(console, 'input', return_value='l'):
-            result = resolver.resolve_interactive(sample_change, merge_engine)
+        with patch.object(console, "input", return_value="l"):
+            result = resolver.resolve_interactive(sample_change)
 
         assert result.resolution == Resolution.USE_LOCAL
         assert result.file_change is sample_change
-        assert result.merged_content is None
 
     def test_resolve_interactive_remote(self, sample_change, console):
         """Requirement 5.3: Remote selection returns USE_REMOTE resolution."""
         resolver = ConflictResolver(console=console)
-        merge_engine = MergeEngine()
-
-        with patch.object(console, 'input', return_value='r'):
-            result = resolver.resolve_interactive(sample_change, merge_engine)
+        with patch.object(console, "input", return_value="r"):
+            result = resolver.resolve_interactive(sample_change)
 
         assert result.resolution == Resolution.USE_REMOTE
         assert result.file_change is sample_change
-        assert result.merged_content is None
 
     def test_resolve_interactive_skip(self, sample_change, console):
         """Requirement 5.5: Skip selection returns SKIP resolution."""
         resolver = ConflictResolver(console=console)
-        merge_engine = MergeEngine()
-
-        with patch.object(console, 'input', return_value='s'):
-            result = resolver.resolve_interactive(sample_change, merge_engine)
+        with patch.object(console, "input", return_value="s"):
+            result = resolver.resolve_interactive(sample_change)
 
         assert result.resolution == Resolution.SKIP
         assert result.file_change is sample_change
-        assert result.merged_content is None
 
-    def test_resolve_interactive_merge_success(self, sample_change, console):
-        """Test successful merge returns merged content."""
-        resolver = ConflictResolver(console=console)
 
-        # Mock merge engine to return successful merge
-        merge_engine = MagicMock(spec=MergeEngine)
-        merge_engine.merge_files.return_value = MergeResult(
-            success=True,
-            merged_content="merged content\n",
-            has_conflicts=False,
-            conflict_markers=[],
-        )
-
-        with patch.object(console, 'input', return_value='m'):
-            result = resolver.resolve_interactive(sample_change, merge_engine)
-
-        assert result.resolution == Resolution.MERGE
-        assert result.merged_content == "merged content\n"
-
-    def test_resolve_interactive_merge_with_conflicts(self, sample_change, console):
-        """Test merge with conflicts still returns content."""
-        resolver = ConflictResolver(console=console)
-
-        # Mock merge engine to return merge with conflicts
-        merge_engine = MagicMock(spec=MergeEngine)
-        merge_engine.merge_files.return_value = MergeResult(
-            success=False,
-            merged_content="<<<<<<< local\nlocal\n=======\nremote\n>>>>>>> remote\n",
-            has_conflicts=True,
-            conflict_markers=[(1, 5)],
-        )
-
-        with patch.object(console, 'input', return_value='m'):
-            result = resolver.resolve_interactive(sample_change, merge_engine)
-
-        assert result.resolution == Resolution.MERGE
-        assert result.merged_content is not None
-        assert "<<<<<<" in result.merged_content
 
     def test_resolve_interactive_displays_conflict(self, sample_change, console):
         """Test that conflict is displayed before prompting."""
         resolver = ConflictResolver(console=console)
-        merge_engine = MergeEngine()
-
-        with patch.object(console, 'input', return_value='l'):
-            resolver.resolve_interactive(sample_change, merge_engine)
+        with patch.object(console, "input", return_value="l"):
+            resolver.resolve_interactive(sample_change)
 
         output = console.file.getvalue()
         assert "[Conflict]" in output
@@ -502,34 +435,181 @@ class TestEdgeCases:
         output = console.file.getvalue()
         assert "[Conflict]" in output
 
-    def test_merge_without_both_paths(self, console, tmp_path):
-        """Test merge fails gracefully when paths are missing."""
-        resolver = ConflictResolver(console=console)
-        merge_engine = MergeEngine()
-
-        change = FileChange(
-            path="test.txt",
-            change_type=ChangeType.ADDED_LOCAL,
-            local_path=tmp_path / "local.txt",
-            remote_path=None,  # Missing remote
-            is_binary=False,
-        )
-
-        # First try merge, then skip when it fails
-        inputs = iter(['m', 's'])
-        with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
-            result = resolver.resolve_interactive(change, merge_engine)
-
-        # Should fall back to skip
-        assert result.resolution == Resolution.SKIP
 
     def test_empty_input_prompts_again(self, sample_change, console):
         """Test that empty input prompts again."""
         resolver = ConflictResolver(console=console)
 
         # Empty string, then valid input
-        inputs = iter(['', 'l'])
-        with patch.object(console, 'input', side_effect=lambda _: next(inputs)):
+        inputs = iter(["", "l"])
+        with patch.object(console, "input", side_effect=lambda _: next(inputs)):
             result = resolver.prompt_resolution(sample_change)
 
         assert result == Resolution.USE_LOCAL
+
+
+class TestContextAwareOptions:
+    """Tests for context-aware option display (k/d for only_in cases)."""
+
+    def test_only_in_store_keep_option(self, console, tmp_path):
+        """Test that 'k' keeps file in store (copies to local) for only_in_store."""
+        resolver = ConflictResolver(console=console)
+
+        remote_path = tmp_path / "store" / "test.txt"
+        remote_path.parent.mkdir(parents=True)
+        remote_path.write_text("store content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_REMOTE,
+            local_path=None,
+            remote_path=remote_path,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value="k"):
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_REMOTE  # Keep in store = use remote
+
+    def test_only_in_store_delete_option(self, console, tmp_path):
+        """Test that 'd' deletes from store for only_in_store."""
+        resolver = ConflictResolver(console=console)
+
+        remote_path = tmp_path / "store" / "test.txt"
+        remote_path.parent.mkdir(parents=True)
+        remote_path.write_text("store content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_REMOTE,
+            local_path=None,
+            remote_path=remote_path,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value="d"):
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_LOCAL  # Delete from store = use local (empty)
+
+    def test_only_in_local_keep_option(self, console, tmp_path):
+        """Test that 'k' keeps file in local (copies to store) for only_in_local."""
+        resolver = ConflictResolver(console=console)
+
+        local_path = tmp_path / "project" / "test.txt"
+        local_path.parent.mkdir(parents=True)
+        local_path.write_text("local content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_LOCAL,
+            local_path=local_path,
+            remote_path=None,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value="k"):
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_LOCAL  # Keep in local = use local
+
+    def test_only_in_local_delete_option(self, console, tmp_path):
+        """Test that 'd' deletes from local for only_in_local."""
+        resolver = ConflictResolver(console=console)
+
+        local_path = tmp_path / "project" / "test.txt"
+        local_path.parent.mkdir(parents=True)
+        local_path.write_text("local content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_LOCAL,
+            local_path=local_path,
+            remote_path=None,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value="d"):
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_REMOTE  # Delete from local = use remote (empty)
+
+    def test_only_in_store_default_is_keep(self, console, tmp_path):
+        """Test that Enter key defaults to 'keep' for only_in_store."""
+        resolver = ConflictResolver(console=console)
+
+        remote_path = tmp_path / "store" / "test.txt"
+        remote_path.parent.mkdir(parents=True)
+        remote_path.write_text("store content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_REMOTE,
+            local_path=None,
+            remote_path=remote_path,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value=""):  # Enter key
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_REMOTE  # Default: keep in store
+
+    def test_only_in_local_default_is_keep(self, console, tmp_path):
+        """Test that Enter key defaults to 'keep' for only_in_local."""
+        resolver = ConflictResolver(console=console)
+
+        local_path = tmp_path / "project" / "test.txt"
+        local_path.parent.mkdir(parents=True)
+        local_path.write_text("local content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_LOCAL,
+            local_path=local_path,
+            remote_path=None,
+            is_binary=False,
+        )
+
+        with patch.object(console, "input", return_value=""):  # Enter key
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_LOCAL  # Default: keep in local
+
+    def test_modified_both_uses_lr_options(self, sample_change, console):
+        """Test that modified_both still uses l/r options."""
+        resolver = ConflictResolver(console=console)
+
+        # Test 'l' option
+        with patch.object(console, "input", return_value="l"):
+            result = resolver.prompt_resolution(sample_change)
+        assert result == Resolution.USE_LOCAL
+
+        # Test 'r' option
+        with patch.object(console, "input", return_value="r"):
+            result = resolver.prompt_resolution(sample_change)
+        assert result == Resolution.USE_REMOTE
+
+    def test_invalid_option_for_only_in_store(self, console, tmp_path):
+        """Test that invalid options are rejected for only_in_store."""
+        resolver = ConflictResolver(console=console)
+
+        remote_path = tmp_path / "store" / "test.txt"
+        remote_path.parent.mkdir(parents=True)
+        remote_path.write_text("store content")
+
+        change = FileChange(
+            path="test.txt",
+            change_type=ChangeType.ADDED_REMOTE,
+            local_path=None,
+            remote_path=remote_path,
+            is_binary=False,
+        )
+
+        # Try 'l' (invalid for only_in_store), then 'k' (valid)
+        inputs = iter(["l", "k"])
+        with patch.object(console, "input", side_effect=lambda _: next(inputs)):
+            result = resolver.prompt_resolution(change)
+
+        assert result == Resolution.USE_REMOTE

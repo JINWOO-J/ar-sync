@@ -186,7 +186,7 @@ class TestCLIErrorHandling:
         runner = CliRunner()
 
         # Mock the selector to return empty list (simulating cancellation)
-        with patch('ar_sync.template_selector.TemplateSelector') as mock_selector_cls:
+        with patch("ar_sync.template_selector.TemplateSelector") as mock_selector_cls:
             mock_selector = MagicMock()
             mock_selector.run_interactive_selection.return_value = []
             mock_selector_cls.return_value = mock_selector

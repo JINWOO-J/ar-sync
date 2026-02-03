@@ -29,10 +29,7 @@ class ARSyncError(Exception):
     """
 
     def __init__(
-        self,
-        message: str,
-        category: ErrorCategory,
-        recovery_steps: list[str] | None = None
+        self, message: str, category: ErrorCategory, recovery_steps: list[str] | None = None
     ) -> None:
         """Initialize ARSyncError.
 
@@ -75,12 +72,7 @@ class SyncError(ARSyncError):
         recovery_steps: List of steps to resolve the issue
     """
 
-    def __init__(
-        self,
-        message: str,
-        category: ErrorCategory,
-        file_path: str | None = None
-    ) -> None:
+    def __init__(self, message: str, category: ErrorCategory, file_path: str | None = None) -> None:
         """Initialize SyncError.
 
         Args:
@@ -173,12 +165,6 @@ def get_symlink_error_guidance() -> str:
             "Alternatively, run this command as Administrator."
         )
     elif system == "Darwin":  # macOS
-        return (
-            "Symlink creation failed. Check file permissions:\n"
-            "  chmod +w ."
-        )
+        return "Symlink creation failed. Check file permissions:\n  chmod +w ."
     else:  # Linux and other Unix-like systems
-        return (
-            "Symlink creation failed. Check file permissions:\n"
-            "  chmod +w ."
-        )
+        return "Symlink creation failed. Check file permissions:\n  chmod +w ."

@@ -30,43 +30,143 @@ class DiffEngine:
     """
 
     # Common text file extensions (explicitly text)
-    TEXT_EXTENSIONS = frozenset({
-        # Source code
-        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.c', '.cpp', '.h', '.hpp',
-        '.cs', '.go', '.rs', '.rb', '.php', '.swift', '.kt', '.scala',
-        # Markup/Config
-        '.md', '.markdown', '.txt', '.json', '.yaml', '.yml', '.toml', '.ini',
-        '.xml', '.html', '.htm', '.css', '.scss', '.sass', '.less',
-        # Shell/Scripts
-        '.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd',
-        # Documentation
-        '.rst', '.tex', '.adoc', '.org',
-        # Other text
-        '.csv', '.tsv', '.log', '.sql', '.env', '.gitignore', '.gitattributes',
-    })
+    TEXT_EXTENSIONS = frozenset(
+        {
+            # Source code
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".java",
+            ".c",
+            ".cpp",
+            ".h",
+            ".hpp",
+            ".cs",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".swift",
+            ".kt",
+            ".scala",
+            # Markup/Config
+            ".md",
+            ".markdown",
+            ".txt",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".ini",
+            ".xml",
+            ".html",
+            ".htm",
+            ".css",
+            ".scss",
+            ".sass",
+            ".less",
+            # Shell/Scripts
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".fish",
+            ".ps1",
+            ".bat",
+            ".cmd",
+            # Documentation
+            ".rst",
+            ".tex",
+            ".adoc",
+            ".org",
+            # Other text
+            ".csv",
+            ".tsv",
+            ".log",
+            ".sql",
+            ".env",
+            ".gitignore",
+            ".gitattributes",
+        }
+    )
 
     # Common binary file extensions
-    BINARY_EXTENSIONS = frozenset({
-        # Images
-        '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
-        '.tiff', '.tif', '.psd', '.ai', '.eps',
-        # Audio/Video
-        '.mp3', '.mp4', '.wav', '.avi', '.mov', '.mkv', '.flac', '.ogg',
-        '.m4a', '.m4v', '.webm',
-        # Archives
-        '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.xz', '.zst',
-        # Documents
-        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-        # Executables/Libraries
-        '.exe', '.dll', '.so', '.dylib', '.a', '.o', '.pyc', '.pyo',
-        '.class', '.jar', '.war', '.ear',
-        # Fonts
-        '.ttf', '.otf', '.woff', '.woff2', '.eot',
-        # Database
-        '.db', '.sqlite', '.sqlite3',
-        # Other
-        '.bin', '.dat', '.iso', '.dmg',
-    })
+    BINARY_EXTENSIONS = frozenset(
+        {
+            # Images
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".bmp",
+            ".ico",
+            ".webp",
+            ".svg",
+            ".tiff",
+            ".tif",
+            ".psd",
+            ".ai",
+            ".eps",
+            # Audio/Video
+            ".mp3",
+            ".mp4",
+            ".wav",
+            ".avi",
+            ".mov",
+            ".mkv",
+            ".flac",
+            ".ogg",
+            ".m4a",
+            ".m4v",
+            ".webm",
+            # Archives
+            ".zip",
+            ".tar",
+            ".gz",
+            ".bz2",
+            ".7z",
+            ".rar",
+            ".xz",
+            ".zst",
+            # Documents
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            # Executables/Libraries
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".a",
+            ".o",
+            ".pyc",
+            ".pyo",
+            ".class",
+            ".jar",
+            ".war",
+            ".ear",
+            # Fonts
+            ".ttf",
+            ".otf",
+            ".woff",
+            ".woff2",
+            ".eot",
+            # Database
+            ".db",
+            ".sqlite",
+            ".sqlite3",
+            # Other
+            ".bin",
+            ".dat",
+            ".iso",
+            ".dmg",
+        }
+    )
 
     def compare_directories(
         self,
@@ -153,7 +253,7 @@ class DiffEngine:
                 files[target] = target_path
             elif target_path.is_dir():
                 # Recursively collect files (Requirement 2.6)
-                for file_path in target_path.rglob('*'):
+                for file_path in target_path.rglob("*"):
                     if file_path.is_file():
                         # Skip symlinks pointing to store
                         if store_dir and self._is_symlink_to_store(file_path, store_dir):
@@ -332,10 +432,7 @@ class DiffEngine:
             # git diff --no-index returns exit code 1 if files differ
             # and exit code 0 if files are identical
             result = subprocess.run(
-                [
-                    'git', 'diff', '--no-index',
-                    '--', str(remote_path), str(local_path)
-                ],
+                ["git", "diff", "--no-index", "--", str(remote_path), str(local_path)],
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -345,11 +442,11 @@ class DiffEngine:
             if result.returncode in (0, 1):
                 return result.stdout
 
-            return ''
+            return ""
         except subprocess.TimeoutExpired:
-            return ''
+            return ""
         except (subprocess.SubprocessError, OSError):
-            return ''
+            return ""
 
     def is_binary_file(self, path: Path) -> bool:
         """Check if a file is binary.
@@ -374,7 +471,7 @@ class DiffEngine:
         # Check content for binary indicators
         try:
             # Read first 8KB to check for binary content
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 chunk = f.read(8192)
 
             # Empty file is not binary
@@ -382,7 +479,7 @@ class DiffEngine:
                 return False
 
             # Check for null bytes (strong indicator of binary)
-            if b'\x00' in chunk:
+            if b"\x00" in chunk:
                 return True
 
             # Check for high ratio of non-text bytes

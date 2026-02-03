@@ -1,14 +1,16 @@
 """Interactive template selection UI for ar-sync.
 
 This module provides the TemplateSelector class for interactive
-template selection using Rich library components.
+template selection using Rich library components and questionary for fuzzy search.
 
 Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 """
 
+import questionary
+from questionary import Choice
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
+from rich.prompt import Confirm
 from rich.table import Table
 
 from ar_sync.template_manager import TemplateManager
@@ -47,7 +49,7 @@ class TemplateSelector:
         self.console = console or Console()
 
     def select_categories(self) -> list[str]:
-        """카테고리 선택 UI. 선택된 카테고리 목록 반환.
+        """카테고리 선택 UI (fuzzy search with arrow keys).
 
         Requirement 2.1: 카테고리 목록을 체크박스 형태로 표시
 
@@ -55,69 +57,49 @@ class TemplateSelector:
             선택된 카테고리 목록. 취소 시 빈 리스트.
         """
         self.console.print("\n[bold cyan]📁 템플릿 카테고리 선택[/bold cyan]")
-        self.console.print("[dim]복사할 템플릿 카테고리를 선택하세요.[/dim]\n")
+        self.console.print("[dim]복사할 템플릿 카테고리를 선택하세요.[/dim]")
+        self.console.print(
+            "[dim]Use arrow keys to navigate, space to select, enter to confirm[/dim]\n"
+        )
 
-        # 카테고리 목록 표시
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("#", style="cyan", width=3)
-        table.add_column("카테고리", style="white")
-        table.add_column("설명", style="dim")
-        table.add_column("템플릿 수", style="green", justify="right")
-
+        # 카테고리 정보 수집
         all_templates = self.template_manager.scan_templates()
         categories = TemplateManager.CATEGORIES
 
-        for i, category in enumerate(categories, 1):
+        # questionary.checkbox로 fuzzy search + arrow key navigation
+        choices = []
+        for category in categories:
             count = len(all_templates.get(category, []))
             description = self.CATEGORY_DESCRIPTIONS.get(category, "")
-            table.add_row(str(i), category, description, str(count))
-
-        self.console.print(table)
-
-        # 선택 입력
-        self.console.print("\n[dim]선택할 카테고리 번호를 입력하세요 (쉼표로 구분, 예: 1,2,3)[/dim]")
-        self.console.print("[dim]전체 선택: 'all' 또는 'a' / 취소: 'q' 또는 빈 입력[/dim]")
+            title = f"{category} - {description} ({count} templates)"
+            choices.append(Choice(title=title, value=category))
 
         try:
-            selection = Prompt.ask(
-                "[bold]카테고리 선택[/bold]",
-                default="all",
-                console=self.console,
-            )
-        except KeyboardInterrupt:
+            selected_categories = questionary.checkbox(
+                "Select template categories:",
+                choices=choices,
+            ).ask()
+        except (KeyboardInterrupt, EOFError, OSError):
+            # KeyboardInterrupt: User pressed Ctrl+C
+            # EOFError: stdin closed (e.g., in tests)
+            # OSError: stdin not available (e.g., pytest capture)
             self.console.print("\n[yellow]선택이 취소되었습니다.[/yellow]")
             return []
 
-        if not selection or selection.lower() == "q":
-            self.console.print("[yellow]선택이 취소되었습니다.[/yellow]")
-            return []
-
-        if selection.lower() in ("all", "a"):
-            return categories.copy()
-
-        # 번호 파싱
-        selected: list[str] = []
-        try:
-            for part in selection.split(","):
-                idx = int(part.strip()) - 1
-                if 0 <= idx < len(categories):
-                    selected.append(categories[idx])
-        except ValueError:
-            self.console.print("[red]잘못된 입력입니다. 숫자를 입력하세요.[/red]")
-            return []
-
-        if not selected:
+        # 선택 취소 또는 빈 선택
+        if selected_categories is None or not selected_categories:
             self.console.print("[yellow]선택된 카테고리가 없습니다.[/yellow]")
             return []
 
-        return selected
+        # Type narrowing: questionary returns list[Any], but we know it's list[str]
+        return list(selected_categories)
 
     def select_templates(
         self,
         category: str,
         search_query: str | None = None,
     ) -> list[TemplateMetadata]:
-        """특정 카테고리에서 템플릿 선택 UI.
+        """특정 카테고리에서 템플릿 선택 UI (fuzzy search with arrow keys).
 
         Requirements:
         - 2.2: 템플릿 목록을 다중 선택 가능한 형태로 표시
@@ -149,52 +131,40 @@ class TemplateSelector:
         self.console.print(f"\n[bold cyan]📄 {category.upper()} 템플릿 선택[/bold cyan]")
         if search_query:
             self.console.print(f"[dim]검색어: '{search_query}'[/dim]")
+        self.console.print(
+            "[dim]Use arrow keys to navigate, space to select, enter to confirm[/dim]\n"
+        )
 
-        # 템플릿 목록 표시
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("#", style="cyan", width=3)
-        table.add_column("이름", style="white")
-        table.add_column("설명", style="dim", max_width=50)
-
-        for i, template in enumerate(templates, 1):
-            table.add_row(
-                str(i),
-                template.display_name,
-                template.short_description or "[dim]설명 없음[/dim]",
+        # questionary.checkbox로 fuzzy search + arrow key navigation
+        choices = [
+            Choice(
+                title=f"{t.display_name} - {t.short_description or 'No description'}",
+                value=t.name,
             )
-
-        self.console.print(table)
-
-        # 선택 입력
-        self.console.print("\n[dim]선택할 템플릿 번호를 입력하세요 (쉼표로 구분, 예: 1,3,5)[/dim]")
-        self.console.print("[dim]전체 선택: 'all' 또는 'a' / 건너뛰기: 's' 또는 빈 입력[/dim]")
+            for t in templates
+        ]
 
         try:
-            selection = Prompt.ask(
-                f"[bold]{category} 템플릿 선택[/bold]",
-                default="all",
-                console=self.console,
-            )
-        except KeyboardInterrupt:
+            selected_names = questionary.checkbox(
+                f"Select {category} templates:",
+                choices=choices,
+            ).ask()
+        except (KeyboardInterrupt, EOFError, OSError):
+            # KeyboardInterrupt: User pressed Ctrl+C
+            # EOFError: stdin closed (e.g., in tests)
+            # OSError: stdin not available (e.g., pytest capture)
             self.console.print("\n[yellow]선택이 취소되었습니다.[/yellow]")
             return []
 
-        if not selection or selection.lower() == "s":
+        # 선택 취소 또는 빈 선택
+        if selected_names is None or not selected_names:
             return []
 
-        if selection.lower() in ("all", "a"):
-            return templates.copy()
-
-        # 번호 파싱
+        # 선택된 이름으로 TemplateMetadata 객체 찾기
         selected: list[TemplateMetadata] = []
-        try:
-            for part in selection.split(","):
-                idx = int(part.strip()) - 1
-                if 0 <= idx < len(templates):
-                    selected.append(templates[idx])
-        except ValueError:
-            self.console.print("[red]잘못된 입력입니다. 숫자를 입력하세요.[/red]")
-            return []
+        for template in templates:
+            if template.name in selected_names:
+                selected.append(template)
 
         return selected
 

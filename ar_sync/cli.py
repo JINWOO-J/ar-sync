@@ -15,7 +15,7 @@ from ar_sync.config_manager import ConfigManager
 from ar_sync.constants import DEFAULT_TARGETS, SYNC_MODE_LINK
 from ar_sync.errors import ARSyncError, ErrorCategory
 from ar_sync.git_backend import GitBackend
-from ar_sync.models import LocalConfig
+from ar_sync.models import LocalConfig, StoreMetadata
 from ar_sync.project_manager import ProjectManager
 from ar_sync.store_manager import StoreManager
 from ar_sync.sync.bidirectional_sync import BidirectionalSync
@@ -48,10 +48,10 @@ def setup_logging(debug: bool = False) -> None:
 
     if debug:
         formatter = logging.Formatter(
-            '[%(levelname)s] %(name)s:%(funcName)s:%(lineno)d - %(message)s'
+            "[%(levelname)s] %(name)s:%(funcName)s:%(lineno)d - %(message)s"
         )
     else:
-        formatter = logging.Formatter('[%(levelname)s] %(message)s')
+        formatter = logging.Formatter("[%(levelname)s] %(message)s")
 
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -82,7 +82,7 @@ def perform_auto_sync(config: LocalConfig) -> None:
     if not config.auto_sync:
         return
 
-    if config.backend != 'git':
+    if config.backend != "git":
         return
 
     if not config.repo_url:
@@ -105,7 +105,7 @@ app = typer.Typer(
     name="ar-sync",
     help="Synchronize AI IDE settings across machines using Git",
     add_completion=False,
-    no_args_is_help=True
+    no_args_is_help=True,
 )
 
 
@@ -113,6 +113,7 @@ def version_callback(value: bool) -> None:
     """Print version and exit."""
     if value:
         from ar_sync.__version__ import __version__
+
         typer.echo(f"ar-sync version {__version__}")
         raise typer.Exit()
 
@@ -126,8 +127,8 @@ def callback(
         "-v",
         help="Show version and exit",
         callback=version_callback,
-        is_eager=True
-    )
+        is_eager=True,
+    ),
 ) -> None:
     """Callback to handle global options."""
     pass
@@ -138,7 +139,7 @@ def setup(
     backend: str = typer.Option(None, help="Storage backend: 'git' or 'local'"),
     path: str = typer.Option(None, help="Local store path"),
     repo_url: str = typer.Option(None, help="Git repository URL (required for 'git' backend)"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Initialize ar-sync global configuration and storage backend.
 
@@ -169,15 +170,15 @@ def setup(
                 backend = "git"  # Default to git if no existing config
 
         # 2. Validate backend
-        if backend not in ['git', 'local']:
+        if backend not in ["git", "local"]:
             raise ARSyncError(
                 f"Unsupported backend: {backend}",
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Use 'git' or 'local' as the backend",
                     "Example (git): ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
-                    "Example (local): ars setup --backend local --path ~/Dropbox/ar-sync-store"
-                ]
+                    "Example (local): ars setup --backend local --path ~/Dropbox/ar-sync-store",
+                ],
             )
 
         # 3. Use existing values as defaults if not provided
@@ -190,21 +191,21 @@ def setup(
                     ErrorCategory.USER_INPUT,
                     recovery_steps=[
                         "Provide --path option",
-                        "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                    ]
+                        "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                    ],
                 )
 
         if repo_url is None:
             if existing_config:
                 repo_url = existing_config.repo_url
-            elif backend == 'git':
+            elif backend == "git":
                 raise ARSyncError(
                     "Repository URL is required for 'git' backend",
                     ErrorCategory.USER_INPUT,
                     recovery_steps=[
                         "Provide --repo-url option",
-                        "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                    ]
+                        "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                    ],
                 )
             else:
                 repo_url = ""  # Not required for local backend
@@ -221,7 +222,7 @@ def setup(
             default_targets=list(DEFAULT_TARGETS),
             auto_sync=False,
             backup_originals=True,
-            backup_dir=str(Path.home() / ".config" / "ar-sync" / "backups")
+            backup_dir=str(Path.home() / ".config" / "ar-sync" / "backups"),
         )
 
         # 4. Save configuration using ConfigManager
@@ -230,7 +231,7 @@ def setup(
         typer.echo(f"✓ Configuration saved to {ConfigManager.CONFIG_PATH}")
 
         # 5. Initialize Git repository (only for git backend)
-        if backend == 'git':
+        if backend == "git":
             # Verify remote access before initializing
             typer.echo("Verifying remote repository access...")
             if not GitBackend.verify_remote_access(repo_url):
@@ -242,8 +243,8 @@ def setup(
                         "Add your SSH key to the Git hosting service (GitHub, GitLab, etc.)",
                         "Check repository URL is correct and accessible",
                         "Test SSH connection: ssh -T git@github.com (or your Git host)",
-                        "Ensure the repository exists and you have access permissions"
-                    ]
+                        "Ensure the repository exists and you have access permissions",
+                    ],
                 )
             typer.echo("✓ Remote repository is accessible")
 
@@ -264,7 +265,7 @@ def setup(
         typer.echo("\n✓ Initialization complete!")
         typer.echo(f"\nBackend: {backend}")
         typer.echo(f"Store location: {store_path}")
-        if backend == 'git':
+        if backend == "git":
             typer.echo(f"Remote repository: {repo_url}")
         typer.echo("\nNext steps:")
         typer.echo("  1. cd to your project directory")
@@ -282,8 +283,8 @@ def setup(
             recovery_steps=[
                 "Check that the path is valid and writable",
                 "Ensure Git is installed and available in PATH",
-                "Verify the repository URL is correct"
-            ]
+                "Verify the repository URL is correct",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -294,8 +295,10 @@ def setup(
 @app.command()
 def add(
     name: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
-    targets: str | None = typer.Option(None, help="Comma-separated targets (defaults to .cursor,.kiro,.gemini,.qwen,AGENTS.md)"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    targets: str | None = typer.Option(
+        None, help="Comma-separated targets (defaults to .cursor,.kiro,.gemini,.qwen,AGENTS.md)"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Add current project to store.
 
@@ -320,8 +323,8 @@ def add(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend local --path ~/Dropbox/ar-sync-store"
-                ]
+                    "Example: ars setup --backend local --path ~/Dropbox/ar-sync-store",
+                ],
             )
 
         # 2. Determine project name
@@ -329,7 +332,7 @@ def add(
 
         # 3. Determine targets
         if targets:
-            target_list = [t.strip() for t in targets.split(',')]
+            target_list = [t.strip() for t in targets.split(",")]
         else:
             target_list = config.default_targets
 
@@ -344,8 +347,8 @@ def add(
                 recovery_steps=[
                     f"Expected targets: {', '.join(target_list)}",
                     "Make sure you're in the correct project directory",
-                    "Or specify custom targets with --targets option"
-                ]
+                    "Or specify custom targets with --targets option",
+                ],
             )
 
         typer.echo(f"Found targets: {', '.join(found_targets)}")
@@ -368,7 +371,7 @@ def add(
         typer.echo("✓ Store metadata updated")
 
         # 7. Commit and push (only for git backend)
-        if config.backend == 'git' and config.repo_url:
+        if config.backend == "git" and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -382,7 +385,9 @@ def add(
 
         typer.echo(f"\n✓ Project '{project_name}' added successfully!")
         typer.echo("\nNext steps:")
-        typer.echo(f"  - On another machine, run 'ars link --project {project_name}' to link these settings")
+        typer.echo(
+            f"  - On another machine, run 'ars link --project {project_name}' to link these settings"
+        )
 
         # Perform auto-sync if enabled
         perform_auto_sync(config)
@@ -399,8 +404,8 @@ def add(
             recovery_steps=[
                 "Check that you have write permissions to the store directory",
                 "Verify Git is configured correctly",
-                "Ensure the remote repository is accessible"
-            ]
+                "Ensure the remote repository is accessible",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -410,10 +415,12 @@ def add(
 
 def _handle_template_init(
     from_template: bool,
+    all_templates: bool,
     list_templates: bool,
     output_dir: str | None,
     category: str | None,
     search: str | None,
+    gitignore: bool,
 ) -> None:
     """Handle template-related init operations.
 
@@ -424,13 +431,16 @@ def _handle_template_init(
     - 4.5: --category 옵션으로 해당 카테고리의 템플릿만 표시
     - 4.6: --list 옵션으로 대화식 모드 없이 템플릿 목록 표시
     - 5.2: --search 옵션과 함께 --list 사용 시 검색 결과만 표시
+    - NEW: --all 옵션으로 모든 템플릿 자동 복사
 
     Args:
         from_template: Start interactive template selection
+        all_templates: Copy all templates automatically
         list_templates: List available templates
         output_dir: Output directory for templates
         category: Filter by category
         search: Search query
+        gitignore: Add .prompts/ to .gitignore
     """
     from rich.console import Console
 
@@ -449,6 +459,47 @@ def _handle_template_init(
     # Handle --list option (Requirement 4.6)
     if list_templates:
         _list_templates(template_manager, console, category, search)
+        return
+
+    # Handle --all option (copy all templates automatically)
+    if all_templates:
+        all_scanned = template_manager.scan_templates()
+
+        # Apply category filter if specified
+        if category:
+            selected = all_scanned.get(category, [])
+            if not selected:
+                console.print(f"\n[yellow]No templates found in category '{category}'[/yellow]")
+                return
+        else:
+            # Flatten all templates from all categories
+            selected = []
+            for templates in all_scanned.values():
+                selected.extend(templates)
+
+        if not selected:
+            console.print("\n[yellow]No templates available[/yellow]")
+            return
+
+        console.print(f"\n[bold cyan]Copying {len(selected)} templates...[/bold cyan]")
+
+        # Copy all templates
+        output_path = Path(output_dir) if output_dir else None
+        copier = TemplateCopier(output_dir=output_path, console=console)
+
+        result = copier.copy_templates(selected, force=True)
+
+        if result.success:
+            console.print(
+                f"\n[green]✓ Successfully copied {result.success_count} templates![/green]"
+            )
+
+            if len(result.skipped) > 0:
+                console.print(f"[yellow]⚠ Skipped {len(result.skipped)} templates[/yellow]")
+
+            if len(result.failed) > 0:
+                console.print(f"[red]✗ Failed to copy {len(result.failed)} templates[/red]")
+
         return
 
     # Handle --from-template option (Requirement 4.1, 4.2)
@@ -474,6 +525,12 @@ def _handle_template_init(
         result = copier.copy_templates(selected)
 
         if result.success:
+            # Generate AGENTS.md
+            copier.generate_agents_md(selected)
+
+            # Update .gitignore if requested
+            copier.update_gitignore(add_prompts=gitignore)
+
             console.print("\n[green]✓ 템플릿 초기화 완료![/green]")
             console.print("\n[dim]다음 단계:[/dim]")
             console.print("  1. 복사된 템플릿을 프로젝트에 맞게 수정하세요")
@@ -508,7 +565,9 @@ def _list_templates(
 
         if not templates:
             console.print(f"\n[yellow]'{search}' 검색 결과가 없습니다.[/yellow]")
-            console.print("[dim]다른 검색어를 시도하거나 --list만 사용하여 전체 목록을 확인하세요.[/dim]")
+            console.print(
+                "[dim]다른 검색어를 시도하거나 --list만 사용하여 전체 목록을 확인하세요.[/dim]"
+            )
             return
 
         # Group by category
@@ -536,7 +595,9 @@ def _list_templates(
     console.print("[dim]카테고리 필터: ars init --list --category agents[/dim]")
 
 
-def _print_category_table(console: "Console", category: str, templates: list["TemplateMetadata"]) -> None:
+def _print_category_table(
+    console: "Console", category: str, templates: list["TemplateMetadata"]
+) -> None:
     """Print a table of templates for a category.
 
     Args:
@@ -567,13 +628,31 @@ def _print_category_table(console: "Console", category: str, templates: list["Te
 @app.command()
 def init(
     name: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
-    targets: str | None = typer.Option(None, help="Comma-separated targets (defaults to .cursor,.kiro,.gemini,.qwen,AGENTS.md)"),
-    from_template: bool = typer.Option(False, "--from-template", "-t", help="Start interactive template selection"),
-    output_dir: str | None = typer.Option(None, "--output-dir", "-o", help="Output directory for templates (default: .claude)"),
-    category: str | None = typer.Option(None, "--category", "-c", help="Filter by category (agents, rules, skills)"),
-    list_templates: bool = typer.Option(False, "--list", "-l", help="List available templates without interactive mode"),
-    search: str | None = typer.Option(None, "--search", "-s", help="Search templates by name or description"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    targets: str | None = typer.Option(
+        None, help="Comma-separated targets (defaults to .cursor,.kiro,.gemini,.qwen,AGENTS.md)"
+    ),
+    from_template: bool = typer.Option(
+        False, "--from-template", "-t", help="Start interactive template selection"
+    ),
+    all_templates: bool = typer.Option(
+        False, "--all", help="Copy all available templates without prompting"
+    ),
+    output_dir: str | None = typer.Option(
+        None, "--output-dir", "-o", help="Output directory for templates (default: .prompts)"
+    ),
+    category: str | None = typer.Option(
+        None, "--category", "-c", help="Filter by category (agents, rules, skills)"
+    ),
+    list_templates: bool = typer.Option(
+        False, "--list", "-l", help="List available templates without interactive mode"
+    ),
+    search: str | None = typer.Option(
+        None, "--search", "-s", help="Search templates by name or description"
+    ),
+    gitignore: bool = typer.Option(
+        False, "--gitignore", help="Add .prompts/ to .gitignore (default: no, for team sharing)"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Initialize current project and optionally add templates.
 
@@ -583,11 +662,14 @@ def init(
     With --from-template (-t), starts interactive template selection to copy
     AI IDE configuration templates (agents, rules, skills) to your project.
 
+    With --all, automatically copies all available templates without prompting.
+
     Examples:
         ars init
         ars init --name my-project
         ars init --targets .cursor,.kiro,.vscode,AGENTS.md
         ars init -t                          # Interactive template selection
+        ars init -t --all                    # Copy all templates automatically
         ars init --list                      # List available templates
         ars init --list --search security    # Search templates
         ars init -t --category agents        # Select from agents only
@@ -597,16 +679,18 @@ def init(
     setup_logging(debug)
 
     # Handle template-related options first (independent of store configuration)
-    if list_templates or from_template:
+    if list_templates or from_template or all_templates:
         _handle_template_init(
             from_template=from_template,
+            all_templates=all_templates,
             list_templates=list_templates,
             output_dir=output_dir,
             category=category,
             search=search,
+            gitignore=gitignore,
         )
         # If only listing templates, exit here
-        if list_templates and not from_template:
+        if list_templates and not from_template and not all_templates:
             return
 
     try:
@@ -623,8 +707,8 @@ def init(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize global configuration",
-                    "Example: ars setup --backend local --path ~/Dropbox/ar-sync-store"
-                ]
+                    "Example: ars setup --backend local --path ~/Dropbox/ar-sync-store",
+                ],
             )
 
         # 2. Determine project name
@@ -632,7 +716,7 @@ def init(
 
         # 3. Determine targets
         if targets:
-            target_list = [t.strip() for t in targets.split(',')]
+            target_list = [t.strip() for t in targets.split(",")]
         else:
             target_list = config.default_targets
 
@@ -647,8 +731,8 @@ def init(
                 recovery_steps=[
                     f"Expected targets: {', '.join(target_list)}",
                     "Make sure you're in the correct project directory",
-                    "Or specify custom targets with --targets option"
-                ]
+                    "Or specify custom targets with --targets option",
+                ],
             )
 
         typer.echo(f"Found targets: {', '.join(found_targets)}")
@@ -671,7 +755,7 @@ def init(
         typer.echo("✓ Store metadata updated")
 
         # 7. Commit and push (only for git backend)
-        if config.backend == 'git' and config.repo_url:
+        if config.backend == "git" and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -684,7 +768,7 @@ def init(
             typer.echo("✓ Changes saved to local store")
 
         # 8. For local backend, automatically create symlinks
-        if config.backend == 'local':
+        if config.backend == "local":
             typer.echo("\nCreating symlinks...")
 
             # Remove existing files/directories before linking
@@ -697,7 +781,9 @@ def init(
                         target_path.unlink()
 
             # Create symlinks
-            backed_up_files = project_manager.link_project(project_dir, project_name, found_targets, force=True)
+            backed_up_files = project_manager.link_project(
+                project_dir, project_name, found_targets, force=True
+            )
 
             if backed_up_files:
                 typer.echo("\n⚠️  Original files were backed up:")
@@ -709,7 +795,7 @@ def init(
 
         typer.echo(f"\n✓ Project '{project_name}' initialized successfully!")
 
-        if config.backend == 'git':
+        if config.backend == "git":
             typer.echo("\nNext steps:")
             typer.echo("  - On another machine, run 'ars link' to link these settings")
         else:
@@ -730,8 +816,8 @@ def init(
             recovery_steps=[
                 "Check that you have write permissions to the store directory",
                 "Verify the store directory is accessible",
-                "Ensure you're in the correct project directory"
-            ]
+                "Ensure you're in the correct project directory",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -741,9 +827,11 @@ def init(
 
 @app.command()
 def link(
-    project: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
+    project: str | None = typer.Option(
+        None, help="Project name (defaults to current directory name)"
+    ),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing files"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Link store settings to current directory.
 
@@ -768,8 +856,8 @@ def link(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # 2. Determine project name
@@ -784,8 +872,8 @@ def link(
                 recovery_steps=[
                     "The store directory may have been deleted or moved",
                     f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
-                    "Or update the store path: ars config --path /path/to/store"
-                ]
+                    "Or update the store path: ars config --path /path/to/store",
+                ],
             )
 
         # 4. Get project info from store
@@ -799,8 +887,8 @@ def link(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store may not be properly initialized",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
         if project_info is None:
@@ -809,8 +897,8 @@ def link(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars status' to see available projects",
-                    "Or run 'ars add' to add this project first"
-                ]
+                    "Or run 'ars add' to add this project first",
+                ],
             )
 
         typer.echo(f"Linking project: {project_name}")
@@ -825,8 +913,8 @@ def link(
                 recovery_steps=[
                     "The project metadata exists but the directory is missing",
                     "Run 'ars add' to recreate the project in store",
-                    "Or check if the store directory has been modified manually"
-                ]
+                    "Or check if the store directory has been modified manually",
+                ],
             )
 
         # 6. Create symlinks
@@ -835,15 +923,17 @@ def link(
         project_manager = ProjectManager(store_path, backup_dir)
 
         try:
-            backed_up_files = project_manager.link_project(project_dir, project_name, project_info.targets, force)
+            backed_up_files = project_manager.link_project(
+                project_dir, project_name, project_info.targets, force
+            )
         except FileExistsError as e:
             raise ARSyncError(
                 str(e),
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Use --force to overwrite existing files",
-                    "Or manually remove/rename the existing files"
-                ]
+                    "Or manually remove/rename the existing files",
+                ],
             )
 
         # Show backup information if files were backed up
@@ -857,7 +947,9 @@ def link(
 
         # 7. Update store metadata with current machine and set sync_mode to "link"
         hostname = ProjectManager.get_hostname()
-        store_manager.add_project(project_name, project_info.targets, hostname, sync_mode=SYNC_MODE_LINK)
+        store_manager.add_project(
+            project_name, project_info.targets, hostname, sync_mode=SYNC_MODE_LINK
+        )
 
         typer.echo("✓ Store metadata updated (sync_mode: link)")
 
@@ -876,8 +968,8 @@ def link(
             recovery_steps=[
                 "Check that you have write permissions in the current directory",
                 "On Windows, ensure Developer Mode is enabled for symlink support",
-                "Verify the store directory is accessible"
-            ]
+                "Verify the store directory is accessible",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -885,17 +977,158 @@ def link(
         raise typer.Exit(code=1)
 
 
+def _display_current_project_status(
+    config: LocalConfig,
+    metadata: StoreMetadata,
+    project_name: str,
+    detection_method: str | None,
+    store_path: Path,
+    current_dir: Path,
+) -> None:
+    """Display detailed status for current project."""
+    project_info = metadata.projects[project_name]
+
+    typer.echo(f"Project: {project_name}")
+    typer.echo(f"Status: Synced with store (detected by {detection_method})")
+    typer.echo(f"Targets: {', '.join(project_info.targets)}")
+    typer.echo(f"Sync Mode: {project_info.sync_mode}")
+    typer.echo()
+
+    # Local status - check each target (only for symlink mode)
+    if project_info.sync_mode == "symlink":
+        typer.echo("Local Status:")
+        for target in project_info.targets:
+            local_path = current_dir / target
+            store_target_path = store_path / project_name / target
+
+            if local_path.is_symlink():
+                target_resolved = local_path.resolve()
+                if target_resolved == store_target_path.resolve():
+                    typer.echo(f"  {target:20s} Linked to store")
+                else:
+                    typer.echo(f"  {target:20s} Symlink (wrong target)")
+            elif local_path.exists():
+                typer.echo(f"  {target:20s} Exists (not linked)")
+            else:
+                typer.echo(f"  {target:20s} Missing")
+        typer.echo()
+
+    # Store status
+    typer.echo("Store Status:")
+    typer.echo(f"  Path: {store_path / project_name}")
+
+    # Check Git status if git backend
+    if config.backend == "git" and config.repo_url:
+        try:
+            from ar_sync.git_backend import GitBackend
+
+            git_backend = GitBackend(store_path, config.repo_url)
+            git_backend.initialize()
+
+            if git_backend.repo is not None:
+                is_dirty = git_backend.repo.is_dirty(untracked_files=True)
+                if is_dirty:
+                    typer.echo("  Uncommitted changes: Yes")
+                else:
+                    typer.echo("  Uncommitted changes: None")
+        except Exception:
+            pass
+    typer.echo()
+
+    # Remote status
+    if config.backend == "git" and config.repo_url:
+        typer.echo("Remote Status:")
+        typer.echo(f"  Repository: {config.repo_url}")
+        typer.echo()
+
+    # Machines
+    typer.echo(f"Machines ({len(project_info.machines)}):")
+    current_hostname = ProjectManager.get_hostname()
+    for machine in project_info.machines:
+        is_current_machine = machine.hostname == current_hostname
+        marker = " (current)" if is_current_machine else ""
+        typer.echo(f"  - {machine.hostname}{marker}")
+        typer.echo(f"    Last sync: {machine.linked_at}")
+    typer.echo()
+
+    typer.echo("Tip: Run 'ars status --all' to see all registered projects")
+
+
+def _display_unregistered_status(
+    config: LocalConfig, metadata: StoreMetadata, current_dir: Path, store_path: Path
+) -> None:
+    """Display status when current directory is not registered."""
+    typer.echo("Current directory is not registered with ar-sync.")
+    typer.echo()
+
+    # Scan for available targets
+    found_targets = ProjectManager.scan_targets(current_dir, config.default_targets)
+    if found_targets:
+        typer.echo("Available targets detected:")
+        for target in found_targets:
+            typer.echo(f"  {target}")
+        typer.echo()
+        typer.echo("To add this project:")
+        typer.echo("  ars init")
+        typer.echo()
+
+    # Show registered projects summary
+    typer.echo(f"Registered projects ({len(metadata.projects)}):")
+    for project_name in metadata.projects.keys():
+        typer.echo(f"  - {project_name}")
+    typer.echo()
+
+    typer.echo("Tip: Run 'ars status --all' for detailed information")
+
+
+def _display_all_projects_status(
+    config: LocalConfig, metadata: StoreMetadata, current_project: str | None, store_path: Path
+) -> None:
+    """Display overview of all registered projects."""
+    typer.echo(f"Store: {store_path}")
+    typer.echo(f"Remote: {config.repo_url if config.repo_url else '(local only)'}")
+    typer.echo()
+    typer.echo(f"Registered projects ({len(metadata.projects)}):")
+    typer.echo()
+
+    current_hostname = ProjectManager.get_hostname()
+
+    for project_name, project_info in metadata.projects.items():
+        is_current = project_name == current_project
+        prefix = "→ " if is_current else "  "
+        current_marker = " (current directory)" if is_current else ""
+
+        typer.echo(f"{prefix}{project_name}{current_marker}")
+        typer.echo(f"    Targets: {', '.join(project_info.targets)}")
+        typer.echo(f"    Sync Mode: {project_info.sync_mode}")
+
+        # Check if current machine is in the list
+        machine_names = [m.hostname for m in project_info.machines]
+        if current_hostname in machine_names:
+            typer.echo("    Status: Synced on this machine")
+        else:
+            typer.echo("    Status: Not synced on this machine")
+
+        typer.echo(f"    Machines: {', '.join(machine_names)}")
+        typer.echo()
+
+
 @app.command()
 def status(
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    all_projects: bool = typer.Option(
+        False, "--all", "-a", help="Show all registered projects with details"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
-    """Show registered projects and sync status.
+    """Show project sync status.
 
-    Displays all projects, their targets, and linked machines.
+    By default, shows detailed status for the current project if registered.
+    Use --all to see all registered projects.
 
-    Example:
-        ars status
-        ars status --debug
+    Examples:
+        ars status              # Current project details
+        ars status --all        # All projects overview
+        ars status --debug      # With debug logging
     """
     setup_logging(debug)
 
@@ -910,8 +1143,8 @@ def status(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # 2. Check if store directory exists
@@ -923,8 +1156,8 @@ def status(
                 recovery_steps=[
                     "The store directory may have been deleted or moved",
                     f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
-                    "Or update the store path: ars config --path /path/to/store"
-                ]
+                    "Or update the store path: ars config --path /path/to/store",
+                ],
             )
 
         # 3. Load store metadata
@@ -938,12 +1171,20 @@ def status(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store may not be properly initialized",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
-        # 4. Get current project name
-        current_project = ProjectManager.get_current_project_name()
+        # 4. Detect current project using hybrid approach
+        current_dir = Path.cwd()
+        detected_project, detection_method = ProjectManager.detect_current_project(
+            store_path, current_dir
+        )
+
+        # Verify detected project exists in metadata
+        if detected_project and detected_project not in metadata.projects:
+            detected_project = None
+            detection_method = None
 
         # 4.5. Sync metadata with actual store contents for all projects
         synced_projects = []
@@ -954,34 +1195,28 @@ def status(
         # Reload metadata if any projects were synced
         if synced_projects:
             metadata = store_manager.load()
-            typer.echo(f"Synced metadata for projects: {', '.join(synced_projects)}\n", err=True)
+            if DEBUG_MODE:
+                typer.echo(
+                    f"Synced metadata for projects: {', '.join(synced_projects)}\n", err=True
+                )
 
-        # 5. Display status
+        # 5. Display status based on context
         if not metadata.projects:
             typer.echo("No projects registered yet.")
             typer.echo("\nRun 'ars add' in a project directory to add it to the store.")
             return
 
-        typer.echo(f"Store: {store_path}")
-        typer.echo(f"Remote: {config.repo_url}")
-        typer.echo(f"\nRegistered projects ({len(metadata.projects)}):\n")
-
-        for project_name, project_info in metadata.projects.items():
-            # Highlight current project
-            is_current = project_name == current_project
-            prefix = "→ " if is_current else "  "
-
-            typer.echo(f"{prefix}{project_name}")
-            typer.echo(f"    Targets: {', '.join(project_info.targets)}")
-            typer.echo(f"    Machines ({len(project_info.machines)}):")
-
-            for machine in project_info.machines:
-                typer.echo(f"      - {machine.hostname} (linked: {machine.linked_at})")
-
-            typer.echo()
-
-        if current_project in metadata.projects:
-            typer.echo(f"→ Current directory is registered as '{current_project}'")
+        # Show all projects overview
+        if all_projects:
+            _display_all_projects_status(config, metadata, detected_project, store_path)
+        # Show current project details
+        elif detected_project:
+            _display_current_project_status(
+                config, metadata, detected_project, detection_method, store_path, current_dir
+            )
+        # Show unregistered directory status
+        else:
+            _display_unregistered_status(config, metadata, current_dir, store_path)
 
     except ARSyncError as e:
         typer.echo(e.format_error(), err=True)
@@ -994,8 +1229,8 @@ def status(
             ErrorCategory.FILE_SYSTEM,
             recovery_steps=[
                 "Check that the store directory is accessible",
-                "Verify the metadata file is not corrupted"
-            ]
+                "Verify the metadata file is not corrupted",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -1084,11 +1319,15 @@ def sync(
     message: str | None = typer.Option(None, "-m", help="Commit message"),
     pull_only: bool = typer.Option(False, "--pull", help="Pull only (Remote → Store → Project)"),
     push_only: bool = typer.Option(False, "--push", help="Push only (Project → Store → Remote)"),
-    local: bool = typer.Option(False, "--local", help="Automatically prefer local (project) files for all conflicts"),
-    remote: bool = typer.Option(False, "--remote", help="Automatically prefer remote (store) files for all conflicts"),
+    local: bool = typer.Option(
+        False, "--local", help="Automatically prefer local (project) files for all conflicts"
+    ),
+    remote: bool = typer.Option(
+        False, "--remote", help="Automatically prefer remote (store) files for all conflicts"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying them"),
     diff: bool = typer.Option(False, "--diff", help="Show differences only without syncing"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Synchronize project files with store and remote repository.
 
@@ -1132,15 +1371,15 @@ def sync(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # 2. Get store path
         store_path = Path(config.store_path)
 
         # 3. Perform sync based on backend type
-        if config.backend == 'git':
+        if config.backend == "git":
             # Git backend: sync with remote repository
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
@@ -1153,8 +1392,8 @@ def sync(
                     recovery_steps=[
                         "Use --pull for pull only",
                         "Use --push for push only",
-                        "Or use neither for full sync"
-                    ]
+                        "Or use neither for full sync",
+                    ],
                 )
 
             # Validate --local and --remote mutual exclusivity (Requirement 6.3)
@@ -1165,8 +1404,8 @@ def sync(
                     recovery_steps=[
                         "Use --local to prefer project directory files for all conflicts",
                         "Use --remote to prefer store files for all conflicts",
-                        "Or use neither for interactive conflict resolution"
-                    ]
+                        "Or use neither for interactive conflict resolution",
+                    ],
                 )
 
             # Get current project info for bidirectional sync
@@ -1220,18 +1459,22 @@ def sync(
                 # Handle --diff mode (Requirement 3.3)
                 if diff:
                     typer.echo("[DRY-RUN] Showing differences only (no changes will be made)\n")
-                    typer.echo("⚠️  Project not registered. Use 'ars init' or 'ars add' first for full diff support.")
+                    typer.echo(
+                        "⚠️  Project not registered. Use 'ars init' or 'ars add' first for full diff support."
+                    )
                     return
 
                 # Handle --dry-run mode (Requirement 7.1)
                 if dry_run:
                     typer.echo("[DRY-RUN] Preview mode - no changes will be applied\n")
-                    typer.echo("⚠️  Project not registered. Use 'ars init' or 'ars add' first for full dry-run support.")
+                    typer.echo(
+                        "⚠️  Project not registered. Use 'ars init' or 'ars add' first for full dry-run support."
+                    )
 
                 if not push_only:
                     typer.echo("[1/2] Pulling changes from remote repository...")
                     pull_result = git_backend.pull()
-                    if pull_result['files_changed'] > 0:
+                    if pull_result["files_changed"] > 0:
                         typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote")
                     else:
                         typer.echo("✓ No changes from remote (already up to date)")
@@ -1239,7 +1482,7 @@ def sync(
                 if not pull_only:
                     typer.echo("[2/2] Committing and pushing local changes...")
                     push_result = git_backend.commit_and_push(message)
-                    if push_result['committed']:
+                    if push_result["committed"]:
                         typer.echo(f"✓ Committed {push_result['files_changed']} file(s)")
                         typer.echo("✓ Pushed to remote")
                     else:
@@ -1247,8 +1490,12 @@ def sync(
         else:
             # Local backend: just sync metadata and pull missing targets
             if pull_only or push_only or message or local or remote or dry_run or diff:
-                typer.echo("⚠️  --pull, --push, -m, --local, --remote, --dry-run, --diff options are only available for 'git' backend")
-                typer.echo("For 'local' backend, sync only updates metadata and pulls missing targets\n")
+                typer.echo(
+                    "⚠️  --pull, --push, -m, --local, --remote, --dry-run, --diff options are only available for 'git' backend"
+                )
+                typer.echo(
+                    "For 'local' backend, sync only updates metadata and pulls missing targets\n"
+                )
 
             typer.echo("Syncing metadata with store contents...")
 
@@ -1261,7 +1508,9 @@ def sync(
                 if store_manager.sync_metadata_with_store(project_name):
                     synced_projects.append(project_name)
                     project = metadata.projects[project_name]
-                    typer.echo(f"  Updated targets for '{project_name}': {', '.join(project.targets)}")
+                    typer.echo(
+                        f"  Updated targets for '{project_name}': {', '.join(project.targets)}"
+                    )
 
             if synced_projects:
                 typer.echo(f"\n✓ Synced metadata for {len(synced_projects)} project(s)")
@@ -1286,7 +1535,9 @@ def sync(
                         missing_targets.append(target)
 
                 if missing_targets:
-                    typer.echo(f"\nProject '{current_project}' missing targets: {', '.join(missing_targets)}")
+                    typer.echo(
+                        f"\nProject '{current_project}' missing targets: {', '.join(missing_targets)}"
+                    )
                     typer.echo("Pulling missing targets from store...")
 
                     # Pull only missing targets
@@ -1330,8 +1581,8 @@ def sync(
                 "Check your network connection",
                 "Verify Git credentials are configured",
                 "Ensure the remote repository is accessible",
-                "If there are conflicts, resolve them manually in the store directory"
-            ]
+                "If there are conflicts, resolve them manually in the store directory",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -1341,9 +1592,13 @@ def sync(
 
 @app.command()
 def pull(
-    project: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
-    force: bool = typer.Option(False, "--force", "-f", help="Force pull even if project uses symlinks"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    project: str | None = typer.Option(
+        None, help="Project name (defaults to current directory name)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force pull even if project uses symlinks"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Pull changes from store to current project directory.
 
@@ -1377,8 +1632,8 @@ def pull(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # 2. Determine project name
@@ -1392,12 +1647,12 @@ def pull(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store directory may have been deleted or moved",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
         # 4. For git backend, check if we need to sync first
-        if config.backend == 'git' and config.repo_url:
+        if config.backend == "git" and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -1406,8 +1661,10 @@ def pull(
                 typer.echo("Store is behind remote. Syncing first...")
                 typer.echo("[1/2] Pulling changes from remote repository to store...")
                 pull_result = git_backend.pull()
-                if pull_result['files_changed'] > 0:
-                    typer.echo(f"✓ Pulled {pull_result['files_changed']} file(s) from remote to store")
+                if pull_result["files_changed"] > 0:
+                    typer.echo(
+                        f"✓ Pulled {pull_result['files_changed']} file(s) from remote to store"
+                    )
                 else:
                     typer.echo("✓ Store is up to date with remote")
             else:
@@ -1428,8 +1685,8 @@ def pull(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store may not be properly initialized",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
         if project_info is None:
@@ -1438,8 +1695,8 @@ def pull(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars status' to see available projects",
-                    "Or run 'ars add' to add this project first"
-                ]
+                    "Or run 'ars add' to add this project first",
+                ],
             )
 
         # 5.5. Check sync_mode and warn if using symlinks
@@ -1447,7 +1704,7 @@ def pull(
             typer.echo(
                 "Warning: This project uses symlinks. "
                 "Use 'ars link' instead, or use --force to override.",
-                err=True
+                err=True,
             )
             raise typer.Exit(code=1)
 
@@ -1456,7 +1713,7 @@ def pull(
         backup_dir = Path(config.backup_dir)
         project_manager = ProjectManager(store_path, backup_dir)
 
-        step_num = "[2/2]" if config.backend == 'git' else "[1/1]"
+        step_num = "[2/2]" if config.backend == "git" else "[1/1]"
         typer.echo(f"{step_num} Copying files from store to project directory...")
         typer.echo(f"  Project: {project_name}")
         typer.echo(f"  Targets: {', '.join(project_info.targets)}")
@@ -1478,8 +1735,8 @@ def pull(
             recovery_steps=[
                 "Check that you have write permissions in the current directory",
                 "Verify the store directory is accessible",
-                "For git backend, ensure network connection is available"
-            ]
+                "For git backend, ensure network connection is available",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -1489,10 +1746,14 @@ def pull(
 
 @app.command()
 def push(
-    project: str | None = typer.Option(None, help="Project name (defaults to current directory name)"),
+    project: str | None = typer.Option(
+        None, help="Project name (defaults to current directory name)"
+    ),
     message: str | None = typer.Option(None, "-m", help="Commit message (git backend only)"),
-    force: bool = typer.Option(False, "--force", "-f", help="Force push even if project uses symlinks"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force push even if project uses symlinks"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """Push changes from current project directory to store.
 
@@ -1519,8 +1780,8 @@ def push(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize the store",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # 2. Determine project name
@@ -1534,8 +1795,8 @@ def push(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store directory may have been deleted or moved",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
         # 4. Get project info from store
@@ -1549,8 +1810,8 @@ def push(
                 ErrorCategory.FILE_SYSTEM,
                 recovery_steps=[
                     "The store may not be properly initialized",
-                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize"
-                ]
+                    f"Run 'ars setup --backend {config.backend} --path {store_path}' to reinitialize",
+                ],
             )
 
         if project_info is None:
@@ -1559,8 +1820,8 @@ def push(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars status' to see available projects",
-                    "Or run 'ars add' to add this project first"
-                ]
+                    "Or run 'ars add' to add this project first",
+                ],
             )
 
         # 4.5. Check sync_mode and warn if using symlinks
@@ -1568,7 +1829,7 @@ def push(
             typer.echo(
                 "Warning: This project uses symlinks. "
                 "Use 'ars link' instead, or use --force to override.",
-                err=True
+                err=True,
             )
             raise typer.Exit(code=1)
 
@@ -1601,7 +1862,7 @@ def push(
         typer.echo(f"✓ Files copied to {store_path / project_name}")
 
         # 7. For git backend, commit and push to remote
-        if config.backend == 'git' and config.repo_url:
+        if config.backend == "git" and config.repo_url:
             git_backend = GitBackend(store_path, config.repo_url)
             git_backend.initialize()
 
@@ -1633,8 +1894,8 @@ def push(
             recovery_steps=[
                 "Check that you have write permissions to the store directory",
                 "Verify the store directory is accessible",
-                "For git backend, ensure network connection and Git credentials are configured"
-            ]
+                "For git backend, ensure network connection and Git credentials are configured",
+            ],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
@@ -1648,9 +1909,13 @@ def config(
     backend: str | None = typer.Option(None, "--backend", help="Set backend (git or local)"),
     path: str | None = typer.Option(None, "--path", help="Set store path"),
     repo_url: str | None = typer.Option(None, "--repo-url", help="Set repository URL"),
-    targets: str | None = typer.Option(None, "--targets", help="Set default targets (comma-separated)"),
-    auto_sync: str | None = typer.Option(None, "--auto-sync", help="Enable/disable auto sync (true/false)"),
-    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging")
+    targets: str | None = typer.Option(
+        None, "--targets", help="Set default targets (comma-separated)"
+    ),
+    auto_sync: str | None = typer.Option(
+        None, "--auto-sync", help="Enable/disable auto sync (true/false)"
+    ),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
 ) -> None:
     """View or modify configuration settings.
 
@@ -1678,16 +1943,24 @@ def config(
                 ErrorCategory.USER_INPUT,
                 recovery_steps=[
                     "Run 'ars setup' first to initialize configuration",
-                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git"
-                ]
+                    "Example: ars setup --backend git --path ~/ar-sync-store --repo-url git@github.com:user/repo.git",
+                ],
             )
 
         # If show flag is set or no options provided, display current config
-        if show or (backend is None and path is None and repo_url is None and targets is None and auto_sync is None):
+        if show or (
+            backend is None
+            and path is None
+            and repo_url is None
+            and targets is None
+            and auto_sync is None
+        ):
             typer.echo("Current configuration:\n")
             typer.echo(f"Backend:         {current_config.backend}")
             typer.echo(f"Store path:      {current_config.store_path}")
-            typer.echo(f"Repository URL:  {current_config.repo_url if current_config.repo_url else '(not set)'}")
+            typer.echo(
+                f"Repository URL:  {current_config.repo_url if current_config.repo_url else '(not set)'}"
+            )
             typer.echo(f"Default targets: {', '.join(current_config.default_targets)}")
             typer.echo(f"Auto sync:       {current_config.auto_sync}")
             typer.echo(f"Backup originals: {current_config.backup_originals}")
@@ -1699,13 +1972,11 @@ def config(
         updated = False
 
         if backend is not None:
-            if backend not in ['git', 'local']:
+            if backend not in ["git", "local"]:
                 raise ARSyncError(
                     f"Invalid backend: {backend}",
                     ErrorCategory.USER_INPUT,
-                    recovery_steps=[
-                        "Use 'git' or 'local' as the backend"
-                    ]
+                    recovery_steps=["Use 'git' or 'local' as the backend"],
                 )
             current_config.backend = backend
             updated = True
@@ -1723,22 +1994,20 @@ def config(
             typer.echo(f"✓ Repository URL set to: {repo_url}")
 
         if targets is not None:
-            target_list = [t.strip() for t in targets.split(',')]
+            target_list = [t.strip() for t in targets.split(",")]
             current_config.default_targets = target_list
             updated = True
             typer.echo(f"✓ Default targets set to: {', '.join(target_list)}")
 
         if auto_sync is not None:
             auto_sync_lower = auto_sync.lower()
-            if auto_sync_lower not in ['true', 'false']:
+            if auto_sync_lower not in ["true", "false"]:
                 raise ARSyncError(
                     f"Invalid auto-sync value: {auto_sync}",
                     ErrorCategory.USER_INPUT,
-                    recovery_steps=[
-                        "Use 'true' or 'false' for --auto-sync option"
-                    ]
+                    recovery_steps=["Use 'true' or 'false' for --auto-sync option"],
                 )
-            current_config.auto_sync = auto_sync_lower == 'true'
+            current_config.auto_sync = auto_sync_lower == "true"
             updated = True
             typer.echo(f"✓ Auto sync set to: {current_config.auto_sync}")
 
@@ -1755,14 +2024,102 @@ def config(
         error = ARSyncError(
             f"Configuration operation failed: {str(e)}",
             ErrorCategory.FILE_SYSTEM,
-            recovery_steps=[
-                "Check file permissions",
-                "Ensure configuration file is not corrupted"
-            ]
+            recovery_steps=["Check file permissions", "Ensure configuration file is not corrupted"],
         )
         typer.echo(error.format_error(), err=True)
         if DEBUG_MODE:
             logger.exception("Unexpected error occurred during config")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def remove(
+    project_name: str = typer.Argument(..., help="Name of the project to remove"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+    debug: bool = typer.Option(False, "-d", "--debug", help="Enable debug logging"),
+) -> None:
+    """Remove a project from ar-sync.
+
+    Unregisters the project from store metadata. Does not delete files.
+
+    Examples:
+        ars remove my-project
+        ars remove my-project --yes
+    """
+    setup_logging(debug)
+
+    try:
+        # Load configuration
+        config_manager = ConfigManager()
+        try:
+            config = config_manager.load()
+        except FileNotFoundError:
+            raise ARSyncError(
+                "Store not initialized",
+                ErrorCategory.USER_INPUT,
+                recovery_steps=["Run 'ars setup' first to initialize the store"],
+            )
+
+        # Check if store exists
+        store_path = Path(config.store_path)
+        if not store_path.exists():
+            raise ARSyncError(
+                "Store directory does not exist",
+                ErrorCategory.FILE_SYSTEM,
+                recovery_steps=[f"Create store directory at {store_path}"],
+            )
+
+        # Load store metadata
+        store_manager = StoreManager(store_path)
+        try:
+            metadata = store_manager.load()
+        except FileNotFoundError:
+            raise ARSyncError(
+                "Store metadata not found",
+                ErrorCategory.FILE_SYSTEM,
+                recovery_steps=["Run 'ars setup' to initialize the store"],
+            )
+
+        # Check if project exists
+        if project_name not in metadata.projects:
+            raise ARSyncError(
+                f"Project '{project_name}' not found",
+                ErrorCategory.USER_INPUT,
+                recovery_steps=[
+                    "Run 'ars status' to see registered projects",
+                    "Check project name spelling",
+                ],
+            )
+
+        # Confirm removal
+        if not yes:
+            confirm = typer.confirm(
+                f"Remove project '{project_name}' from ar-sync?\n"
+                "This will unregister the project but will not delete any files."
+            )
+            if not confirm:
+                typer.echo("Operation cancelled")
+                return
+
+        # Remove project from metadata
+        store_manager.remove_project(project_name)
+
+        typer.echo(f"✓ Project '{project_name}' removed from ar-sync")
+
+    except ARSyncError as e:
+        typer.echo(e.format_error(), err=True)
+        if DEBUG_MODE:
+            logger.exception("ARSyncError occurred during remove")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        error = ARSyncError(
+            f"Remove operation failed: {str(e)}",
+            ErrorCategory.FILE_SYSTEM,
+            recovery_steps=["Check file permissions", "Ensure configuration file is accessible"],
+        )
+        typer.echo(error.format_error(), err=True)
+        if DEBUG_MODE:
+            logger.exception("Unexpected error occurred during remove")
         raise typer.Exit(code=1)
 
 

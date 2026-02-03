@@ -151,3 +151,6 @@ test-store/
 .kiro
 !.kiro/specs/
 AGENTS.mdeverything-claude-code/
+
+.ruff_cache
+.kiro

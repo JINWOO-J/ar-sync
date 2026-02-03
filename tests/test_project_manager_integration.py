@@ -19,11 +19,7 @@ def temp_dirs(tmp_path):
     backup_dir.mkdir()
     project_dir.mkdir()
 
-    return {
-        "store": store_dir,
-        "backup": backup_dir,
-        "project": project_dir
-    }
+    return {"store": store_dir, "backup": backup_dir, "project": project_dir}
 
 
 @pytest.fixture

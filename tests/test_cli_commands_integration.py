@@ -1,6 +1,5 @@
 """Integration tests for CLI commands to improve coverage."""
 
-
 import pytest
 from typer.testing import CliRunner
 
@@ -29,13 +28,13 @@ def temp_env(tmp_path, monkeypatch):
 
     # Set config path using monkeypatch (auto-restores after test)
     config_path = config_dir / "config.yaml"
-    monkeypatch.setattr(ConfigManager, 'CONFIG_PATH', config_path)
+    monkeypatch.setattr(ConfigManager, "CONFIG_PATH", config_path)
 
     return {
         "config_dir": config_dir,
         "store_dir": store_dir,
         "backup_dir": backup_dir,
-        "tmp_path": tmp_path
+        "tmp_path": tmp_path,
     }
 
 
@@ -46,11 +45,7 @@ class TestSetupCommand:
         """Test setup command with local backend."""
         store_dir = temp_env["store_dir"]
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        result = runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         assert result.exit_code == 0
         assert "Configuration saved" in result.stdout
@@ -59,11 +54,9 @@ class TestSetupCommand:
 
     def test_setup_with_invalid_backend(self, runner, temp_env):
         """Test setup command with invalid backend."""
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "invalid",
-            "--path", str(temp_env["store_dir"])
-        ])
+        result = runner.invoke(
+            app, ["setup", "--backend", "invalid", "--path", str(temp_env["store_dir"])]
+        )
 
         assert result.exit_code == 1
         output = result.stdout + result.stderr
@@ -71,10 +64,7 @@ class TestSetupCommand:
 
     def test_setup_without_path(self, runner, temp_env):
         """Test setup command without path."""
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local"
-        ])
+        result = runner.invoke(app, ["setup", "--backend", "local"])
 
         assert result.exit_code == 1
         output = result.stdout + result.stderr
@@ -82,11 +72,9 @@ class TestSetupCommand:
 
     def test_setup_with_git_backend_without_repo_url(self, runner, temp_env):
         """Test setup command with git backend but no repo URL."""
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(temp_env["store_dir"])
-        ])
+        result = runner.invoke(
+            app, ["setup", "--backend", "git", "--path", str(temp_env["store_dir"])]
+        )
 
         assert result.exit_code == 1
         output = result.stdout + result.stderr
@@ -97,21 +85,13 @@ class TestSetupCommand:
         store_dir = temp_env["store_dir"]
 
         # First setup
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Update with new path
         new_store = temp_env["tmp_path"] / "new-store"
         new_store.mkdir()
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(new_store)
-        ])
+        result = runner.invoke(app, ["setup", "--backend", "local", "--path", str(new_store)])
 
         assert result.exit_code == 0
 
@@ -140,11 +120,7 @@ class TestInitCommand:
         """Test init command when no targets are found."""
         # Setup first
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Create empty project directory
         project_dir = temp_env["tmp_path"] / "project"
@@ -161,11 +137,7 @@ class TestInitCommand:
         """Test init command with custom project name."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Create project with targets
         project_dir = temp_env["tmp_path"] / "project"
@@ -187,11 +159,7 @@ class TestInitCommand:
         """Test init command with custom targets."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         # Create project with custom targets
         project_dir = temp_env["tmp_path"] / "project"
@@ -240,11 +208,7 @@ class TestLinkCommand:
         """Test link command for non-existent project."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -267,7 +231,7 @@ class TestLinkCommand:
             default_targets=[".kiro"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir=str(temp_env["backup_dir"])
+            backup_dir=str(temp_env["backup_dir"]),
         )
         config_manager = ConfigManager()
         config_manager.save(config)
@@ -298,11 +262,7 @@ class TestStatusCommand:
         """Test status command with no registered projects."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["status"])
 
@@ -320,7 +280,7 @@ class TestStatusCommand:
             default_targets=[".kiro"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir=str(temp_env["backup_dir"])
+            backup_dir=str(temp_env["backup_dir"]),
         )
         config_manager = ConfigManager()
         config_manager.save(config)
@@ -347,12 +307,18 @@ class TestSyncCommand:
         """Test sync command with conflicting --pull and --push options."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(store_dir),
-            "--repo-url", "git@github.com:test/repo.git"
-        ])
+        runner.invoke(
+            app,
+            [
+                "setup",
+                "--backend",
+                "git",
+                "--path",
+                str(store_dir),
+                "--repo-url",
+                "git@github.com:test/repo.git",
+            ],
+        )
 
         result = runner.invoke(app, ["sync", "--pull", "--push"])
 
@@ -364,12 +330,18 @@ class TestSyncCommand:
         """Test sync command with conflicting --local and --remote options (Requirement 6.3)."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(store_dir),
-            "--repo-url", "git@github.com:test/repo.git"
-        ])
+        runner.invoke(
+            app,
+            [
+                "setup",
+                "--backend",
+                "git",
+                "--path",
+                str(store_dir),
+                "--repo-url",
+                "git@github.com:test/repo.git",
+            ],
+        )
 
         result = runner.invoke(app, ["sync", "--local", "--remote"])
 
@@ -381,12 +353,18 @@ class TestSyncCommand:
         """Test sync command with --diff option (Requirement 3.3)."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "git",
-            "--path", str(store_dir),
-            "--repo-url", "git@github.com:test/repo.git"
-        ])
+        runner.invoke(
+            app,
+            [
+                "setup",
+                "--backend",
+                "git",
+                "--path",
+                str(store_dir),
+                "--repo-url",
+                "git@github.com:test/repo.git",
+            ],
+        )
 
         result = runner.invoke(app, ["sync", "--diff"])
 
@@ -402,11 +380,7 @@ class TestSyncCommand:
         """
         # Setup with local backend to avoid git operations
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["sync", "--dry-run"])
 
@@ -418,11 +392,7 @@ class TestSyncCommand:
         """Test that sync with local backend ignores git-specific options."""
         # Setup with local backend
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["sync", "--pull", "-m", "test message"])
 
@@ -433,11 +403,7 @@ class TestSyncCommand:
         """Test that sync with local backend ignores new bidirectional sync options."""
         # Setup with local backend
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["sync", "--local", "--dry-run", "--diff"])
 
@@ -464,11 +430,7 @@ class TestPullCommand:
         """Test pull command for non-existent project."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -491,7 +453,7 @@ class TestPullCommand:
             default_targets=[".kiro"],
             auto_sync=False,
             backup_originals=True,
-            backup_dir=str(temp_env["backup_dir"])
+            backup_dir=str(temp_env["backup_dir"]),
         )
         config_manager = ConfigManager()
         config_manager.save(config)
@@ -526,11 +488,7 @@ class TestPushCommand:
         """Test push command for non-existent project."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         project_dir = temp_env["tmp_path"] / "project"
         project_dir.mkdir()
@@ -558,11 +516,7 @@ class TestConfigCommand:
         """Test that config --show displays current configuration."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config", "--show"])
 
@@ -575,13 +529,11 @@ class TestConfigCommand:
         """Test updating backend via config command."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
-        result = runner.invoke(app, ["config", "--backend", "git", "--repo-url", "git@github.com:test/repo.git"])
+        result = runner.invoke(
+            app, ["config", "--backend", "git", "--repo-url", "git@github.com:test/repo.git"]
+        )
 
         assert result.exit_code == 0
         assert "Backend set to: git" in result.stdout
@@ -590,11 +542,7 @@ class TestConfigCommand:
         """Test updating to invalid backend."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config", "--backend", "invalid"])
 
@@ -606,11 +554,7 @@ class TestConfigCommand:
         """Test updating default targets."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config", "--targets", ".vscode,.idea"])
 
@@ -621,11 +565,7 @@ class TestConfigCommand:
         """Test updating auto_sync setting."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config", "--auto-sync", "true"])
 
@@ -636,11 +576,7 @@ class TestConfigCommand:
         """Test updating auto_sync with invalid value."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config", "--auto-sync", "invalid"])
 
@@ -652,11 +588,7 @@ class TestConfigCommand:
         """Test that config without options shows current configuration."""
         # Setup
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["config"])
 
@@ -682,6 +614,54 @@ class TestVersionOption:
         assert "ar-sync version" in result.stdout
 
 
+class TestRemoveCommand:
+    """Test remove command."""
+
+    def test_remove_without_setup(self, runner, temp_env):
+        """Test remove command without prior setup."""
+        result = runner.invoke(app, ["remove", "test-project"])
+
+        assert result.exit_code == 1
+        output = result.stdout + result.stderr
+        assert "Store not initialized" in output
+
+    def test_remove_nonexistent_project(self, runner, temp_env):
+        """Test remove command for non-existent project."""
+        # Setup
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
+
+        result = runner.invoke(app, ["remove", "nonexistent"])
+
+        assert result.exit_code == 1
+        output = result.stdout + result.stderr
+        assert "not found" in output
+
+    def test_remove_project_basic(self, runner, temp_env, monkeypatch):
+        """Test basic project removal."""
+        # Setup
+        store_dir = temp_env["store_dir"]
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
+
+        # Create and init project
+        project_dir = temp_env["tmp_path"] / "project"
+        project_dir.mkdir()
+        (project_dir / ".kiro").mkdir()
+        monkeypatch.chdir(project_dir)
+        runner.invoke(app, ["init", "--name", "test-project"])
+
+        # Remove project (auto-confirm with --yes)
+        result = runner.invoke(app, ["remove", "test-project", "--yes"])
+
+        assert result.exit_code == 0
+        assert "removed" in result.stdout.lower()
+
+        # Verify project is removed from store metadata
+        store_manager = StoreManager(store_dir)
+        metadata = store_manager.load()
+        assert "test-project" not in metadata.projects
+
+
 class TestDebugOption:
     """Test --debug option."""
 
@@ -689,12 +669,9 @@ class TestDebugOption:
         """Test that --debug option works with setup command."""
         store_dir = temp_env["store_dir"]
 
-        result = runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir),
-            "--debug"
-        ])
+        result = runner.invoke(
+            app, ["setup", "--backend", "local", "--path", str(store_dir), "--debug"]
+        )
 
         # Debug mode should not affect success
         assert result.exit_code == 0
@@ -703,11 +680,7 @@ class TestDebugOption:
         """Test that --debug option works with status command."""
         # Setup first
         store_dir = temp_env["store_dir"]
-        runner.invoke(app, [
-            "setup",
-            "--backend", "local",
-            "--path", str(store_dir)
-        ])
+        runner.invoke(app, ["setup", "--backend", "local", "--path", str(store_dir)])
 
         result = runner.invoke(app, ["status", "--debug"])
 

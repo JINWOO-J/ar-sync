@@ -33,17 +33,15 @@ def sample_metadata():
     """Create a sample StoreMetadata for testing."""
     return StoreMetadata(
         version=1,
-        created_at='2025-01-21T10:00:00Z',
+        created_at="2025-01-21T10:00:00Z",
         projects={
-            'test-project': ProjectInfo(
-                added_at='2025-01-21T10:00:00Z',
-                targets=['.cursor', '.kiro'],
-                machines=[
-                    MachineInfo(hostname='test-machine', linked_at='2025-01-21T10:00:00Z')
-                ],
-                sync_mode=SYNC_MODE_COPY
+            "test-project": ProjectInfo(
+                added_at="2025-01-21T10:00:00Z",
+                targets=[".cursor", ".kiro"],
+                machines=[MachineInfo(hostname="test-machine", linked_at="2025-01-21T10:00:00Z")],
+                sync_mode=SYNC_MODE_COPY,
             )
-        }
+        },
     )
 
 
@@ -52,18 +50,13 @@ class TestSyncModeField:
 
     def test_project_info_default_sync_mode_is_copy(self):
         """Test that ProjectInfo defaults sync_mode to 'copy'."""
-        project = ProjectInfo(
-            added_at='2025-01-21T10:00:00Z',
-            targets=['.cursor']
-        )
+        project = ProjectInfo(added_at="2025-01-21T10:00:00Z", targets=[".cursor"])
         assert project.sync_mode == SYNC_MODE_COPY
 
     def test_project_info_accepts_link_sync_mode(self):
         """Test that ProjectInfo accepts 'link' sync_mode."""
         project = ProjectInfo(
-            added_at='2025-01-21T10:00:00Z',
-            targets=['.cursor'],
-            sync_mode=SYNC_MODE_LINK
+            added_at="2025-01-21T10:00:00Z", targets=[".cursor"], sync_mode=SYNC_MODE_LINK
         )
         assert project.sync_mode == SYNC_MODE_LINK
 
@@ -75,46 +68,44 @@ class TestSyncModeField:
         with open(manager.metadata_path) as f:
             data = yaml.safe_load(f)
 
-        assert 'sync_mode' in data['projects']['test-project']
-        assert data['projects']['test-project']['sync_mode'] == SYNC_MODE_COPY
+        assert "sync_mode" in data["projects"]["test-project"]
+        assert data["projects"]["test-project"]["sync_mode"] == SYNC_MODE_COPY
 
     def test_load_reads_sync_mode_from_yaml(self, temp_store_dir, sample_metadata):
         """Test that load() reads sync_mode from YAML."""
         manager = StoreManager(temp_store_dir)
-        sample_metadata.projects['test-project'].sync_mode = SYNC_MODE_LINK
+        sample_metadata.projects["test-project"].sync_mode = SYNC_MODE_LINK
         manager.save(sample_metadata)
 
         manager2 = StoreManager(temp_store_dir)
         loaded = manager2.load()
 
-        assert loaded.projects['test-project'].sync_mode == SYNC_MODE_LINK
+        assert loaded.projects["test-project"].sync_mode == SYNC_MODE_LINK
 
     def test_load_defaults_sync_mode_when_missing(self, temp_store_dir):
         """Test backward compatibility: load() defaults sync_mode to 'copy' when missing."""
         # Create metadata file without sync_mode field (simulating old format)
         metadata_path = temp_store_dir / ".ar-sync.yaml"
         old_format_data = {
-            'version': 1,
-            'created_at': '2025-01-21T10:00:00Z',
-            'projects': {
-                'old-project': {
-                    'added_at': '2025-01-21T10:00:00Z',
-                    'targets': ['.cursor'],
-                    'machines': [
-                        {'hostname': 'test-machine', 'linked_at': '2025-01-21T10:00:00Z'}
-                    ]
+            "version": 1,
+            "created_at": "2025-01-21T10:00:00Z",
+            "projects": {
+                "old-project": {
+                    "added_at": "2025-01-21T10:00:00Z",
+                    "targets": [".cursor"],
+                    "machines": [{"hostname": "test-machine", "linked_at": "2025-01-21T10:00:00Z"}],
                     # Note: no sync_mode field
                 }
-            }
+            },
         }
-        with open(metadata_path, 'w') as f:
+        with open(metadata_path, "w") as f:
             yaml.safe_dump(old_format_data, f)
 
         manager = StoreManager(temp_store_dir)
         loaded = manager.load()
 
         # Should default to "copy" for backward compatibility
-        assert loaded.projects['old-project'].sync_mode == SYNC_MODE_COPY
+        assert loaded.projects["old-project"].sync_mode == SYNC_MODE_COPY
 
 
 class TestAddProjectSyncMode:
@@ -124,9 +115,9 @@ class TestAddProjectSyncMode:
         """Test that add_project() defaults sync_mode to 'copy'."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('new-project', ['.cursor'], 'test-machine')
+        manager.add_project("new-project", [".cursor"], "test-machine")
 
-        project = manager.get_project('new-project')
+        project = manager.get_project("new-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_COPY
 
@@ -134,9 +125,9 @@ class TestAddProjectSyncMode:
         """Test that add_project() accepts 'link' sync_mode."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('new-project', ['.cursor'], 'test-machine', sync_mode=SYNC_MODE_LINK)
+        manager.add_project("new-project", [".cursor"], "test-machine", sync_mode=SYNC_MODE_LINK)
 
-        project = manager.get_project('new-project')
+        project = manager.get_project("new-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_LINK
 
@@ -144,12 +135,12 @@ class TestAddProjectSyncMode:
         """Test that add_project() preserves existing sync_mode when not provided."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('test-project', ['.cursor'], 'machine1', sync_mode=SYNC_MODE_LINK)
+        manager.add_project("test-project", [".cursor"], "machine1", sync_mode=SYNC_MODE_LINK)
 
         # Update project without specifying sync_mode
-        manager.add_project('test-project', ['.cursor', '.kiro'], 'machine2')
+        manager.add_project("test-project", [".cursor", ".kiro"], "machine2")
 
-        project = manager.get_project('test-project')
+        project = manager.get_project("test-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_LINK  # Should be preserved
 
@@ -157,12 +148,12 @@ class TestAddProjectSyncMode:
         """Test that add_project() updates sync_mode when explicitly provided."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('test-project', ['.cursor'], 'machine1', sync_mode=SYNC_MODE_COPY)
+        manager.add_project("test-project", [".cursor"], "machine1", sync_mode=SYNC_MODE_COPY)
 
         # Update project with new sync_mode
-        manager.add_project('test-project', ['.cursor'], 'machine1', sync_mode=SYNC_MODE_LINK)
+        manager.add_project("test-project", [".cursor"], "machine1", sync_mode=SYNC_MODE_LINK)
 
-        project = manager.get_project('test-project')
+        project = manager.get_project("test-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_LINK
 
@@ -174,12 +165,12 @@ class TestUpdateSyncMode:
         """Test that update_sync_mode() changes the sync mode."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('test-project', ['.cursor'], 'test-machine')
+        manager.add_project("test-project", [".cursor"], "test-machine")
 
-        result = manager.update_sync_mode('test-project', SYNC_MODE_LINK)
+        result = manager.update_sync_mode("test-project", SYNC_MODE_LINK)
 
         assert result is True
-        project = manager.get_project('test-project')
+        project = manager.get_project("test-project")
         assert project is not None
         assert project.sync_mode == SYNC_MODE_LINK
 
@@ -188,7 +179,7 @@ class TestUpdateSyncMode:
         manager = StoreManager(temp_store_dir)
         manager.initialize()
 
-        result = manager.update_sync_mode('nonexistent', SYNC_MODE_LINK)
+        result = manager.update_sync_mode("nonexistent", SYNC_MODE_LINK)
 
         assert result is False
 
@@ -196,13 +187,12 @@ class TestUpdateSyncMode:
         """Test that update_sync_mode() persists changes to disk."""
         manager = StoreManager(temp_store_dir)
         manager.initialize()
-        manager.add_project('test-project', ['.cursor'], 'test-machine')
-        manager.update_sync_mode('test-project', SYNC_MODE_LINK)
+        manager.add_project("test-project", [".cursor"], "test-machine")
+        manager.update_sync_mode("test-project", SYNC_MODE_LINK)
 
         # Load with new manager instance
         manager2 = StoreManager(temp_store_dir)
-        project = manager2.get_project('test-project')
+        project = manager2.get_project("test-project")
 
         assert project is not None
         assert project.sync_mode == SYNC_MODE_LINK
-

@@ -49,26 +49,26 @@ class ConfigManager:
                 "Please run 'ars setup' to initialize."
             )
 
-        with open(self.CONFIG_PATH, encoding='utf-8') as f:
+        with open(self.CONFIG_PATH, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         # Migrate 'github' to 'git' for backward compatibility
-        if data.get('backend') == 'github':
-            data['backend'] = 'git'
+        if data.get("backend") == "github":
+            data["backend"] = "git"
             # Save migrated config
-            with open(self.CONFIG_PATH, 'w', encoding='utf-8') as f:
+            with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
                 yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
         # Create LocalConfig from loaded data
         config = LocalConfig(
-            version=data['version'],
-            backend=data['backend'],
-            store_path=data['store_path'],
-            repo_url=data.get('repo_url'),  # Optional field
-            default_targets=data.get('default_targets', []),
-            auto_sync=data.get('auto_sync', False),
-            backup_originals=data.get('backup_originals', True),
-            backup_dir=data.get('backup_dir', '')
+            version=data["version"],
+            backend=data["backend"],
+            store_path=data["store_path"],
+            repo_url=data.get("repo_url"),  # Optional field
+            default_targets=data.get("default_targets", []),
+            auto_sync=data.get("auto_sync", False),
+            backup_originals=data.get("backup_originals", True),
+            backup_dir=data.get("backup_dir", ""),
         )
 
         # Validate before returning
@@ -98,23 +98,23 @@ class ConfigManager:
 
         # Prepare data for YAML serialization
         data = {
-            'version': config.version,
-            'backend': config.backend,
-            'store_path': config.store_path,
-            'default_targets': config.default_targets,
-            'auto_sync': config.auto_sync,
-            'backup_originals': config.backup_originals,
-            'backup_dir': config.backup_dir
+            "version": config.version,
+            "backend": config.backend,
+            "store_path": config.store_path,
+            "default_targets": config.default_targets,
+            "auto_sync": config.auto_sync,
+            "backup_originals": config.backup_originals,
+            "backup_dir": config.backup_dir,
         }
 
         # Add repo_url only if it's set
         if config.repo_url:
-            data['repo_url'] = config.repo_url
+            data["repo_url"] = config.repo_url
 
         # Atomic write: write to temp file then rename
-        temp_path = self.CONFIG_PATH.with_suffix('.tmp')
+        temp_path = self.CONFIG_PATH.with_suffix(".tmp")
         try:
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
             # Atomic rename
@@ -142,10 +142,9 @@ class ConfigManager:
         if not config.backend:
             raise ValueError("backend field is required")
 
-        if config.backend not in ['git', 'local']:
+        if config.backend not in ["git", "local"]:
             raise ValueError(
-                f"Unsupported backend: {config.backend}. "
-                "Supported backends: 'git', 'local'"
+                f"Unsupported backend: {config.backend}. Supported backends: 'git', 'local'"
             )
 
         # Validate store_path
@@ -157,6 +156,5 @@ class ConfigManager:
         # Validate version
         if config.version != 1:
             raise ValueError(
-                f"Unsupported configuration version: {config.version}. "
-                "Expected version 1."
+                f"Unsupported configuration version: {config.version}. Expected version 1."
             )

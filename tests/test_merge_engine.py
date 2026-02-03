@@ -8,8 +8,6 @@ Requirements tested:
 - 5.7: If the file is binary, disable the merge option and only allow local/remote/skip
 """
 
-
-
 from ar_sync.sync.merge_engine import MergeEngine
 
 
@@ -26,8 +24,12 @@ class TestMergeEngineBasicMerge:
 
         # Use more lines with changes in distant regions
         base_file.write_text("line1\nline2\nline3\nline4\nline5\nline6\nline7\n")
-        local_file.write_text("line1\nlocal change\nline3\nline4\nline5\nline6\nline7\n")  # Changed line2
-        remote_file.write_text("line1\nline2\nline3\nline4\nline5\nline6\nremote change\n")  # Changed line7
+        local_file.write_text(
+            "line1\nlocal change\nline3\nline4\nline5\nline6\nline7\n"
+        )  # Changed line2
+        remote_file.write_text(
+            "line1\nline2\nline3\nline4\nline5\nline6\nremote change\n"
+        )  # Changed line7
 
         engine = MergeEngine()
         result = engine.merge_files(base_file, local_file, remote_file)
@@ -125,7 +127,7 @@ class TestMergeEngineBinaryFileRejection:
         remote_file = tmp_path / "remote.txt"
 
         base_file.write_text("base content")
-        local_file.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)  # Binary
+        local_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Binary
         remote_file.write_text("remote content")
 
         engine = MergeEngine()
@@ -143,7 +145,7 @@ class TestMergeEngineBinaryFileRejection:
 
         base_file.write_text("base content")
         local_file.write_text("local content")
-        remote_file.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)  # Binary
+        remote_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)  # Binary
 
         engine = MergeEngine()
         result = engine.merge_files(base_file, local_file, remote_file)
@@ -158,8 +160,8 @@ class TestMergeEngineBinaryFileRejection:
         remote_file = tmp_path / "remote.bin"
 
         base_file.write_text("base content")
-        local_file.write_bytes(b'\x00\x01\x02\x03')
-        remote_file.write_bytes(b'\x04\x05\x06\x07')
+        local_file.write_bytes(b"\x00\x01\x02\x03")
+        remote_file.write_bytes(b"\x04\x05\x06\x07")
 
         engine = MergeEngine()
         result = engine.merge_files(base_file, local_file, remote_file)
@@ -355,7 +357,7 @@ class TestMergeEngineInternalMethods:
     def test_is_binary_file_binary(self, tmp_path):
         """Test _is_binary_file returns True for binary files."""
         binary_file = tmp_path / "binary.bin"
-        binary_file.write_bytes(b'\x00\x01\x02\x03')
+        binary_file.write_bytes(b"\x00\x01\x02\x03")
 
         engine = MergeEngine()
         assert engine._is_binary_file(binary_file) is True
