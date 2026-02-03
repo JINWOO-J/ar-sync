@@ -148,9 +148,10 @@ cython_debug/
 *.tmp
 .ar-sync-test/
 test-store/
-.kiro
-!.kiro/specs/
-AGENTS.mdeverything-claude-code/
+everything-claude-code/
+
+# IDE-specific directories (not part of project)
+.kiro/
+.prompts/
 
 .ruff_cache
-.kiro
